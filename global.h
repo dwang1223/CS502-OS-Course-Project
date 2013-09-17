@@ -28,8 +28,8 @@
 #define GLOBAL_H_
 
 #define         CURRENT_REL                     "4.00"
-#define         NT
-//#define        LINUX
+//#define         NT
+#define        LINUX
 // #define           MAC
 
         /*      These are Portability enhancements              */
