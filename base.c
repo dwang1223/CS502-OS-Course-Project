@@ -111,6 +111,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
     short               call_type;
     static short        do_print = 10;
     short               i;
+    INT32				Time;
 
     call_type = (short)SystemCallData->SystemCallNumber;
     if ( do_print > 0 ) {
@@ -123,6 +124,23 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
         }
     do_print--;
     }
+    switch(call_type)
+    {
+	    
+	    // Get time service call
+	    case SYSNUM_GET_TIME_OF_DAY:
+		    ZCALL( MEM_READ( Z502ClockStatus, &Time ) );
+		    //printf("time = %ld\n",Time);
+            *(INT32 *)Z502_ARG1.PTR = Time;
+            break;
+        // terminate system call
+        case SYSNUM_TERMINATE_PROCESS:
+            Z502_HALT();
+            break;
+        default:  
+            printf( "ERROR!  call_type not recognized!\n" ); 
+            printf( "Call_type is - %i\n", call_type);
+    }                                           // 
 }                                               // End of svc
 
 
