@@ -117,7 +117,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
     if ( do_print > 0 ) {
         printf( "SVC handler: %s\n", call_names[call_type]);
         for (i = 0; i < SystemCallData->NumberOfArguments - 1; i++ ){
-        	 //Value = (long)*SystemCallData->Argument[i];
+        	 //Value = (long)*SystemCallData->Argument[i]; 
              printf( "Arg %d: Contents = (Decimal) %8ld,  (Hex) %8lX\n", i,
              (unsigned long )SystemCallData->Argument[i],
              (unsigned long )SystemCallData->Argument[i]);
