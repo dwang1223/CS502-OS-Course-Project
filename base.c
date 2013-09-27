@@ -135,6 +135,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
             Z502Halt();
+            //printf();
             break;
         default:  
             printf( "ERROR!  call_type not recognized!\n" ); 
