@@ -26,7 +26,7 @@
 #include             "syscalls.h"
 #include             "protos.h"
 #include             "string.h"
-
+//#include             "z502.h"
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -111,37 +111,48 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
     short               call_type;
     static short        do_print = 10;
     short               i;
-    INT32				Time;
+	INT32				Time;
+	INT32				Temp;
+	//extern long			Z502_REG1;
 
     call_type = (short)SystemCallData->SystemCallNumber;
     if ( do_print > 0 ) {
         printf( "SVC handler: %s\n", call_names[call_type]);
         for (i = 0; i < SystemCallData->NumberOfArguments - 1; i++ ){
-        	 //Value = (long)*SystemCallData->Argument[i]; 
+        	 //Value = (long)*SystemCallData->Argument[i];
              printf( "Arg %d: Contents = (Decimal) %8ld,  (Hex) %8lX\n", i,
              (unsigned long )SystemCallData->Argument[i],
              (unsigned long )SystemCallData->Argument[i]);
         }
     do_print--;
     }
-    switch(call_type)
+	switch(call_type)
     {
 	    
 	    // Get time service call
-        case SYSNUM_GET_TIME_OF_DAY:   // This value is found in syscalls.h
-            CALL(MEM_READ( Z502ClockStatus, &Time ));
+	    case SYSNUM_GET_TIME_OF_DAY:
+		    CALL( MEM_READ( Z502ClockStatus, &Time ) );
+		    //printf("time = %ld\n",Time);
             *(INT32 *)SystemCallData->Argument[0] = Time;
             break;
+		
+		//SLEEP CALL
+		case SYSNUM_SLEEP:
+			//printf("\n\ntime = %d \n\n", SystemCallData->Argument[0]);
+			Temp = *(INT32*)SystemCallData->Argument[0]; 
+			MEM_WRITE(Z502TimerStart, &Temp);
+			//MEM_READ(Z502TimerStatus, &Status);
+			Z502Idle();
+			printf("CALL Sleep Functions here\n");
+			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
             Z502Halt();
-            //printf();
             break;
         default:  
             printf( "ERROR!  call_type not recognized!\n" ); 
             printf( "Call_type is - %i\n", call_type);
-
-    }                                           // 
+    }
 }                                               // End of svc
 
 
@@ -180,6 +191,6 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test0, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1a, USER_MODE );
     Z502SwitchContext( SWITCH_CONTEXT_KILL_MODE, &next_context );
 }                                               // End of osInit
