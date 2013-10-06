@@ -139,7 +139,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
 		//SLEEP CALL
 		case SYSNUM_SLEEP:
 			//printf("\n\ntime = %d \n\n", SystemCallData->Argument[0]);
-			Temp = *(INT32*)SystemCallData->Argument[0]; 
+			Temp = (INT32)SystemCallData->Argument[0]; 
 			MEM_WRITE(Z502TimerStart, &Temp);
 			//MEM_READ(Z502TimerStatus, &Status);
 			Z502Idle();

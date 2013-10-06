@@ -103,8 +103,7 @@ void sample_code(void) {
 	// handler reports an illegal status.
 	Temp = -77; /* You pick the time units */
 	printf("The next output from the Interrupt Handler should report that \n");
-	printf(
-			"   interrupt of device 4 has occurred with an ERR_BAD_PARAM = 1.\n");
+	printf("   interrupt of device 4 has occurred with an ERR_BAD_PARAM = 1.\n");
 	MEM_WRITE(Z502TimerStart, &Temp);
 	MEM_READ(Z502TimerStatus, &Status);
 	if (Status == DEVICE_FREE)          // Bogus value shouldn't start timer
@@ -426,8 +425,7 @@ void sample_code(void) {
 
 	// Unlock a thread that's already locked - but unlock it with a thread
 	// other than the one that did the locking.
-	printf(
-			"10. Start State = Locked(1): Action (Thread 2) = unLock: End State = Locked\n");
+	printf("10. Start State = Locked(1): Action (Thread 2) = unLock: End State = Locked\n");
 	printf("    An Error is Expected\n");
 	Status = CreateAThread((int *) DoOneUnlock, &Temp);
 	DoSleep(100); /*  Wait for that thread to finish   */
