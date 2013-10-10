@@ -30,7 +30,8 @@
 //#include             "z502.h"
 #define         ILLEGAL_PRIORITY                -3
 #define         NAME_DUPLICATED					-4
-#define         APPEND_SUCCESS					 1
+#define         SUCCESS							 1
+#define         FAIL							 0
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -91,9 +92,28 @@ int process_creater(PCB *pcbNode)
 	nodeTmp->next = NULL;
 	//readyQueueCursor = nodeTmp;
 	readyQueueCursor->next = nodeTmp;
-	return APPEND_SUCCESS;
+	return pcbNode->pid;
 }
 
+int process_teminator_by_pid(long pID)
+{
+	Queue tmpQueueCursor;
+	Queue readyQueueCursor = readyQueue;
+
+	while(readyQueueCursor->next != NULL)
+	{
+		tmpQueueCursor = readyQueueCursor;
+		readyQueueCursor = readyQueueCursor->next;
+		if(readyQueueCursor->node->pid == pID)
+		{
+			printf("\PID is found!\n");
+			tmpQueueCursor->next = readyQueueCursor->next;
+			return SUCCESS;
+		}
+	}
+	printf("\PID is not found!\n");
+	return FAIL;
+}
 /************************************************************************
     INTERRUPT_HANDLER
         When the Z502 gets a hardware interrupt, it transfers control to
@@ -204,11 +224,13 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 		//Create Process
 		case SYSNUM_CREATE_PROCESS:
 			pcb = PCB_item_generator(SystemCallData);
-			process_creater(pcb);
+			*(long *)SystemCallData->Argument[3] = process_creater(pcb);
 			break;
 
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
+			printf("PID = %ld\n", (long)SystemCallData->Argument[0]);
+			process_teminator_by_pid((long)SystemCallData->Argument[0]);
             Z502Halt();
             break;
         default:  
