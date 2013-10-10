@@ -46,12 +46,20 @@ char                 *call_names[] = { "mem_read ", "mem_write",
                             "disk_wrt ", "def_sh_ar" };
 
 // test whether my struct declare is available
-PCB *pcb;
 Queue timerQueue;
 Queue readyQueue;
 static long increamentPID = 1; //store the maximum pid for all process
 
-/* if priority is legal & process name is unique, 
+PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
+{
+	PCB *pcb = (PCB*)malloc(sizeof(PCB));
+	pcb->name = (char*)SystemCallData->Argument[0];
+	pcb->context = SystemCallData->Argument[1];
+	pcb->prior = (int)SystemCallData->Argument[2];
+	return pcb;
+}
+/* 
+ * if priority is legal & process name is unique, 
  * then create this process, and add it to the end of readyQueue 
  * 
  */
@@ -158,6 +166,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
     short               i;
 	INT32				Time;
 	INT32				Temp;
+	PCB					*pcb;
 	//extern long			Z502_REG1;
 
     call_type = (short)SystemCallData->SystemCallNumber;
@@ -194,18 +203,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 		
 		//Create Process
 		case SYSNUM_CREATE_PROCESS:
-
-			pcb = (PCB*)malloc(sizeof(PCB));
-			pcb->name = (char*)SystemCallData->Argument[0];
-			pcb->context = SystemCallData->Argument[1];
-			pcb->prior = (int)SystemCallData->Argument[2];
-
+			pcb = PCB_item_generator(SystemCallData);
 			process_creater(pcb);
-
-			printf( "STR = %s\n", pcb->name);
-			printf( "PRIOR = %d\n", pcb->prior);
-			//readyQueue->node = pcb;
-			//readyQueue->next = NULL;
 			break;
 
         // terminate system call
