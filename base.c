@@ -26,6 +26,7 @@
 #include             "syscalls.h"
 #include             "protos.h"
 #include             "string.h"
+#include             "custom.h"
 //#include             "z502.h"
 
 // These loacations are global and define information about the page table
@@ -41,6 +42,10 @@ char                 *call_names[] = { "mem_read ", "mem_write",
                             "send     ", "receive  ", "disk_read",
                             "disk_wrt ", "def_sh_ar" };
 
+// test whether my struct declare is available
+PCB *pcb;
+Queue timerQueue;
+Queue readyQueue;
 
 /************************************************************************
     INTERRUPT_HANDLER
@@ -132,7 +137,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
 	    // Get time service call
 	    case SYSNUM_GET_TIME_OF_DAY:
 		    CALL( MEM_READ( Z502ClockStatus, &Time ) );
-		    //printf("time = %ld\n",Time);
+		    printf("time = %ld\n",Time);
             *(INT32 *)SystemCallData->Argument[0] = Time;
             break;
 		
@@ -145,6 +150,17 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
 			Z502Idle();
 			printf("CALL Sleep Functions here\n");
 			break;
+
+		case SYSNUM_CREATE_PROCESS:
+
+			pcb = (PCB *)malloc(sizeof(PCB));
+			pcb->name = SystemCallData->Argument[0];
+			pcb->context = SystemCallData->Argument[1];
+			pcb->prior = (int)SystemCallData->Argument[2];
+			//pcb->pid = SystemCallData->Argument[3];
+			//pcb->prior = SystemCallData->Argument[4];
+			break;
+
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
             Z502Halt();
@@ -191,6 +207,6 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1a, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1b, USER_MODE );
     Z502SwitchContext( SWITCH_CONTEXT_KILL_MODE, &next_context );
 }                                               // End of osInit
