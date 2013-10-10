@@ -28,6 +28,9 @@
 #include             "string.h"
 #include             "custom.h"
 //#include             "z502.h"
+#define         ILLEGAL_PRIORITY                -3
+#define         NAME_DUPLICATED					-4
+#define         APPEND_SUCCESS					 1
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -46,6 +49,40 @@ char                 *call_names[] = { "mem_read ", "mem_write",
 PCB *pcb;
 Queue timerQueue;
 Queue readyQueue;
+
+/* if priority is legal & process name is unique, 
+ * then create this process, and add it to the end of readyQueue 
+ * 
+ */
+int process_creater(PCB *pcbNode)
+{
+	Queue readyQueueCursor,nodeTmp;
+	// priority check
+	if(pcbNode->prior == -3)
+	{
+		printf("\tILLEGAL_PRIORITY\n");
+		return ILLEGAL_PRIORITY;
+	}
+	// duplicate name check
+	readyQueueCursor = readyQueue;
+	while(readyQueueCursor->next != NULL)
+	{
+		readyQueueCursor = readyQueueCursor->next;
+		if(strcmp(readyQueueCursor->node->name,pcbNode->name) == 0)
+		{
+			printf("\tNAME_DUPLICATED\n");
+			return NAME_DUPLICATED;
+		}
+		
+	}
+	//Since everything is OK, now, we can append this node to the readyQueue
+	nodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
+	nodeTmp->node = pcbNode;
+	nodeTmp->next = NULL;
+	//readyQueueCursor = nodeTmp;
+	readyQueueCursor->next = nodeTmp;
+	return APPEND_SUCCESS;
+}
 
 /************************************************************************
     INTERRUPT_HANDLER
@@ -112,25 +149,28 @@ void    fault_handler( void )
         with the amount of data.
 ************************************************************************/
 
-void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
+void    svc( SYSTEM_CALL_DATA *SystemCallData ) 
+{
     short               call_type;
     static short        do_print = 10;
     short               i;
 	INT32				Time;
 	INT32				Temp;
 	//extern long			Z502_REG1;
-	readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
+	//readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
 
     call_type = (short)SystemCallData->SystemCallNumber;
-    if ( do_print > 0 ) {
+    if ( do_print > 0 ) 
+	{
         printf( "SVC handler: %s\n", call_names[call_type]);
-        for (i = 0; i < SystemCallData->NumberOfArguments - 1; i++ ){
+        for (i = 0; i < SystemCallData->NumberOfArguments - 1; i++ )
+		{
         	 //Value = (long)*SystemCallData->Argument[i];
              printf( "Arg %d: Contents = (Decimal) %8ld,  (Hex) %8lX\n", i,
              (unsigned long )SystemCallData->Argument[i],
              (unsigned long )SystemCallData->Argument[i]);
         }
-    do_print--;
+		do_print--;
     }
 	switch(call_type)
     {
@@ -144,24 +184,27 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
 		
 		//SLEEP CALL
 		case SYSNUM_SLEEP:
-			//printf("\n\ntime = %d \n\n", SystemCallData->Argument[0]);
 			Temp = (INT32)SystemCallData->Argument[0]; 
 			MEM_WRITE(Z502TimerStart, &Temp);
-			//MEM_READ(Z502TimerStatus, &Status);
+
 			Z502Idle();
 			printf("CALL Sleep Functions here\n");
 			break;
-
+		
+		//Create Process
 		case SYSNUM_CREATE_PROCESS:
 
 			pcb = (PCB*)malloc(sizeof(PCB));
 			pcb->name = (char*)SystemCallData->Argument[0];
 			pcb->context = SystemCallData->Argument[1];
 			pcb->prior = (int)SystemCallData->Argument[2];
+
+			process_creater(pcb);
+
 			printf( "STR = %s\n", pcb->name);
 			printf( "PRIOR = %d\n", pcb->prior);
-			readyQueue->pcb = pcb;
-			readyQueue->next = NULL;
+			//readyQueue->node = pcb;
+			//readyQueue->next = NULL;
 			break;
 
         // terminate system call
@@ -186,6 +229,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
 void    osInit( int argc, char *argv[]  ) {
     void                *next_context;
     INT32               i;
+	readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
+	readyQueue->next = NULL;
 
     /* Demonstrates how calling arguments are passed thru to here       */
 
