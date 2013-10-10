@@ -158,8 +158,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
 			pcb->name = (char*)SystemCallData->Argument[0];
 			pcb->context = SystemCallData->Argument[1];
 			pcb->prior = (int)SystemCallData->Argument[2];
-			//pcb->pid = SystemCallData->Argument[3];
-			//pcb->prior = SystemCallData->Argument[4];
 			printf( "STR = %s\n", pcb->name);
 			printf( "PRIOR = %d\n", pcb->prior);
 			readyQueue->pcb = pcb;
