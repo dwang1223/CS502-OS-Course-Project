@@ -74,9 +74,11 @@ long get_pid_by_name(char *name)
 
 PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 {
+	void *next_context;
 	pcb = (PCB*)malloc(sizeof(PCB));
 	strcpy(pcb->name, (char*)SystemCallData->Argument[0]);
-	pcb->context = SystemCallData->Argument[1];
+	Z502MakeContext( &next_context, (void *)SystemCallData->Argument[1], USER_MODE );
+	pcb->context = next_context;
 	pcb->prior = (int)SystemCallData->Argument[2];
 	return pcb;
 }
