@@ -1,7 +1,7 @@
 typedef struct
 {
 	long pid;
-	char *name;
+	char name[140];
 	void *context;
 	int prior;
 } PCB;
