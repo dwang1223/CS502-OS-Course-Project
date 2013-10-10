@@ -65,7 +65,7 @@ long get_pid_by_name(char *name)
         readyQueueCursor = readyQueueCursor->next;
         if(strcmp(readyQueueCursor->node->name,pcbNode->name) == 0)
         {
-            return eadyQueueCursor->node->pid;
+            return readyQueueCursor->node->pid;
         }
         
     }   
