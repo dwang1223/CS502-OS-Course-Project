@@ -231,7 +231,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
         case SYSNUM_TERMINATE_PROCESS:
 			printf("PID = %ld\n", (long)SystemCallData->Argument[0]);
 			process_teminator_by_pid((long)SystemCallData->Argument[0]);
-            Z502Halt();
+            //Z502Halt();
             break;
         default:  
             printf( "ERROR!  call_type not recognized!\n" ); 
