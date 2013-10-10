@@ -119,6 +119,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
 	INT32				Time;
 	INT32				Temp;
 	//extern long			Z502_REG1;
+	readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
 
     call_type = (short)SystemCallData->SystemCallNumber;
     if ( do_print > 0 ) {
@@ -153,12 +154,16 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData ) {
 
 		case SYSNUM_CREATE_PROCESS:
 
-			pcb = (PCB *)malloc(sizeof(PCB));
-			pcb->name = SystemCallData->Argument[0];
+			pcb = (PCB*)malloc(sizeof(PCB));
+			pcb->name = (char*)SystemCallData->Argument[0];
 			pcb->context = SystemCallData->Argument[1];
 			pcb->prior = (int)SystemCallData->Argument[2];
 			//pcb->pid = SystemCallData->Argument[3];
 			//pcb->prior = SystemCallData->Argument[4];
+			printf( "STR = %s\n", pcb->name);
+			printf( "PRIOR = %d\n", pcb->prior);
+			readyQueue->pcb = pcb;
+			readyQueue->next = NULL;
 			break;
 
         // terminate system call

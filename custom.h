@@ -8,6 +8,6 @@ typedef struct
 
 typedef struct queue
 {
-	PCB pcb;
+	PCB *pcb;
 	struct queue *next;
-} *Queue;
+} *Queue, QUEUE;
