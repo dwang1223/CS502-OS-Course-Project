@@ -63,13 +63,13 @@ long get_pid_by_name(char *name)
     while(readyQueueCursor->next != NULL)
     {
         readyQueueCursor = readyQueueCursor->next;
-        if(strcmp(readyQueueCursor->node->name,pcbNode->name) == 0)
+        if(strcmp(readyQueueCursor->node->name,name) == 0)
         {
             return readyQueueCursor->node->pid;
         }
         
     }   
-    return NO_PCB_NODE_FOUND
+    return NO_PCB_NODE_FOUND;
 }
 
 PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
