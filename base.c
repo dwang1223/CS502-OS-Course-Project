@@ -50,7 +50,7 @@ char                 *call_names[] = { "mem_read ", "mem_write",
 Queue timerQueue;
 Queue readyQueue;
 static long increamentPID = 1; //store the maximum pid for all process
-
+ 
 PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 {
 	PCB *pcb = (PCB*)malloc(sizeof(PCB));
