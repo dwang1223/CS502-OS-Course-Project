@@ -32,6 +32,7 @@
 #define         NAME_DUPLICATED					-4
 #define         SUCCESS							 1
 #define         FAIL							 0
+#define         NO_PCB_NODE_FOUND               -10L
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -51,6 +52,25 @@ Queue timerQueue;
 Queue readyQueue;
 static long increamentPID = 1; //store the maximum pid for all process
 PCB *pcb;
+static int currentCountOfProcess = 0;
+
+
+long get_pid_by_name(char *name)
+{
+    Queue readyQueueCursor;
+    readyQueueCursor = readyQueue;
+
+    while(readyQueueCursor->next != NULL)
+    {
+        readyQueueCursor = readyQueueCursor->next;
+        if(strcmp(readyQueueCursor->node->name,pcbNode->name) == 0)
+        {
+            return eadyQueueCursor->node->pid;
+        }
+        
+    }   
+    return NO_PCB_NODE_FOUND
+}
 
 PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 {

@@ -11,3 +11,5 @@ typedef struct queue
 	PCB *node;
 	struct queue *next;
 } *Queue, QUEUE;
+
+#define MAX_COUNT_OF_PROCESSES   31
