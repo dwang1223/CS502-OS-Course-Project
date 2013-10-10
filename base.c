@@ -58,6 +58,10 @@ static int currentCountOfProcess = 0;
 long get_pid_by_name(char *name)
 {
     Queue readyQueueCursor;
+	if(strcmp(name, "") == 0)
+	{
+		return ROOT_PID;
+	}
     readyQueueCursor = readyQueue;
 
     while(readyQueueCursor->next != NULL)
@@ -77,7 +81,7 @@ PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 	void *next_context;
 	pcb = (PCB*)malloc(sizeof(PCB));
 	strcpy(pcb->name, (char*)SystemCallData->Argument[0]);
-	Z502MakeContext( &next_context, (void *)SystemCallData->Argument[1], USER_MODE );
+	CALL(Z502MakeContext( &next_context, (void *)SystemCallData->Argument[1], USER_MODE ));
 	pcb->context = next_context;
 	pcb->prior = (int)SystemCallData->Argument[2];
 	return pcb;
@@ -211,6 +215,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	INT32				Time;
 	INT32				Temp;
 	PCB					*pcb;
+	static long			pid;
 	//extern long			Z502_REG1;
 
     call_type = (short)SystemCallData->SystemCallNumber;
@@ -254,7 +259,11 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 				*(long *)SystemCallData->Argument[4] = ERR_BAD_PARAM;
 			}
 			break;
-
+		case SYSNUM_GET_PROCESS_ID:
+			//Get process ID in this section
+			pid = get_pid_by_name((char*)SystemCallData->Argument[0]);
+			*(long*)SystemCallData->Argument[1] = pid;
+			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
 			printf("PID = %ld\n", (long)SystemCallData->Argument[0]);

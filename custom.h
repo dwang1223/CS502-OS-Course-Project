@@ -12,4 +12,5 @@ typedef struct queue
 	struct queue *next;
 } *Queue, QUEUE;
 
-#define MAX_COUNT_OF_PROCESSES   31
+#define MAX_COUNT_OF_PROCESSES   25
+#define ROOT_PID                  0

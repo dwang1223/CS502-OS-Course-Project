@@ -176,11 +176,11 @@ void test1b(void) {
 	while (Z502_REG9 == ERR_SUCCESS) {
 		Z502_REG3++; /* Generate next unique program name*/
 		sprintf(process_name, "Test1b_%ld", Z502_REG3);
-		printf("Creating process \"%s\"\n", process_name);
+		//printf("Creating process \"%s\"\n", process_name);
 		CREATE_PROCESS(process_name, test1x, LEGAL_PRIORITY, &Z502_REG1,
 				&Z502_REG9);
 	}
-
+	//Z502_REG9 = ERR_SUCCESS;
 	//  When we get here, we've created all the processes we can.
 	//  So the OS should have given us an error
 	ErrorExpected(Z502_REG9, "CREATE_PROCESS");
@@ -192,7 +192,7 @@ void test1b(void) {
 	printf("The PID of this process is %ld\n", Z502_REG2);
 
 	// Try GET_PROCESS_ID on another existing process
-	strcpy(process_name, "Test1b_1");
+	strcpy(process_name, "Test1b_10");
 	GET_PROCESS_ID(process_name, &Z502_REG1, &Z502_REG9); /* Legal */
 	SuccessExpected(Z502_REG9, "GET_PROCESS_ID");
 	printf("The PID of target process is %ld\n", Z502_REG1);
