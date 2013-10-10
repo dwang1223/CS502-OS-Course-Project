@@ -49,6 +49,7 @@ char                 *call_names[] = { "mem_read ", "mem_write",
 PCB *pcb;
 Queue timerQueue;
 Queue readyQueue;
+static long increamentPID = 1; //store the maximum pid for all process
 
 /* if priority is legal & process name is unique, 
  * then create this process, and add it to the end of readyQueue 
@@ -77,6 +78,7 @@ int process_creater(PCB *pcbNode)
 	}
 	//Since everything is OK, now, we can append this node to the readyQueue
 	nodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
+	pcbNode->pid = increamentPID++;
 	nodeTmp->node = pcbNode;
 	nodeTmp->next = NULL;
 	//readyQueueCursor = nodeTmp;
@@ -157,7 +159,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	INT32				Time;
 	INT32				Temp;
 	//extern long			Z502_REG1;
-	//readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
 
     call_type = (short)SystemCallData->SystemCallNumber;
     if ( do_print > 0 ) 
