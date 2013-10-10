@@ -85,11 +85,11 @@ PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
  * then create this process, and add it to the end of readyQueue 
  * 
  */
-int process_creater(PCB *pcbNode)
+long process_creater(PCB *pcbNode)
 {
 	Queue readyQueueCursor,nodeTmp;
 	// priority check
-	if(pcbNode->prior == -3)
+	if(pcbNode->prior == ILLEGAL_PRIORITY)
 	{
 		printf("\tILLEGAL_PRIORITY\n");
 		return ILLEGAL_PRIORITY;
@@ -113,6 +113,7 @@ int process_creater(PCB *pcbNode)
 	nodeTmp->next = NULL;
 	//readyQueueCursor = nodeTmp;
 	readyQueueCursor->next = nodeTmp;
+	currentCountOfProcess++;
 	return pcbNode->pid;
 }
 
@@ -246,6 +247,10 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 		case SYSNUM_CREATE_PROCESS:
 			pcb = PCB_item_generator(SystemCallData);
 			*(long *)SystemCallData->Argument[3] = process_creater(pcb);
+			if(currentCountOfProcess > MAX_COUNT_OF_PROCESSES)
+			{
+				*(long *)SystemCallData->Argument[4] = ERR_BAD_PARAM;
+			}
 			break;
 
         // terminate system call
