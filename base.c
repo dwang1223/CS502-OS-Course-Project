@@ -59,7 +59,16 @@ static PCB *currentPCBNode;
 
 int start_timer(long *sleep_time)
 {
+	INT32 currentTime;
+	long _wakeUpTime;
 	Queue timerQueueCursor,nodeTmp;
+
+	//get current absolute time
+	CALL( MEM_READ( Z502ClockStatus, &currentTime ) );
+	_wakeUpTime = (long)currentTime + *sleep_time;
+	currentPCBNode->wakeUpTime = _wakeUpTime;
+
+	
 	timerQueueCursor = timerQueue;
 	while(timerQueueCursor->next != NULL)
 	{
