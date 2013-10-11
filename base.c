@@ -354,7 +354,7 @@ void    interrupt_handler( void ) {
     
 
 	//get current absolute time
-	MEM_READ( Z502ClockStatus, &currentTime );
+	
 	//get the end of readyQueue
 	readyQueueCursor = readyQueue;
 	while(readyQueueCursor->next != NULL)
@@ -364,17 +364,22 @@ void    interrupt_handler( void ) {
 	//printf("\nInterrupt here\n\n");
 	//add the first node from timerQueue to the end of readyQueue
 	timerQueueCursor = timerQueue;
+
 	while(timerQueueCursor->next != NULL)
 	{
 		preTmpCursor = timerQueueCursor;
 		timerQueueCursor = timerQueueCursor->next;
+		// get current time 
+		MEM_READ( Z502ClockStatus, &currentTime );
 
 		if(timerQueueCursor->node->wakeUpTime <= currentTime)
 		{
 			readyQueueCursor->next = timerQueueCursor;
 			preTmpCursor->next = timerQueueCursor->next;
+
 			readyQueueCursor = readyQueueCursor->next;
-			readyQueueCursor->next = NULL;
+ 			readyQueueCursor->next = NULL;
+
 		}
 		else
 		{
