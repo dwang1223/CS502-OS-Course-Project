@@ -83,6 +83,8 @@ int dispatcher()
 		Z502Idle();
 	}
 	currentPCBNode = readyQueue->next->node;
+	//pop up the first node from readyQueue
+	readyQueue->next = readyQueue->next->next;
 
 	Z502SwitchContext( SWITCH_CONTEXT_SAVE_MODE, &(currentPCBNode->context) );
 }
@@ -179,6 +181,8 @@ int process_teminator_by_pid(long pID)
 		{
 			printf("\PID is found!\n");
 			tmpQueueCursor->next = readyQueueCursor->next;
+			// free the node, which has been teminated from & removed from the Queue
+			free(readyQueueCursor);
 			return SUCCESS;
 		}
 	}
