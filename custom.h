@@ -20,3 +20,9 @@ typedef struct queue
 #define         SUCCESS							1
 #define         FAIL							0
 #define         NO_PCB_NODE_FOUND              -10L
+
+#define                  NUM_RAND_BUCKETS          128
+#define                  DO_LOCK                     1
+#define                  DO_UNLOCK                   0
+#define                  SUSPEND_UNTIL_LOCKED        TRUE
+#define                  DO_NOT_SUSPEND              FALSE

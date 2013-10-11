@@ -56,6 +56,7 @@ static long increamentPID = 1; //store the maximum pid for all process
 PCB *pcb;
 static int currentCountOfProcess = 0;
 static PCB *currentPCBNode;
+INT32 LockResult,LockResult2;
 
 void ready_queue_print()
 {
@@ -95,9 +96,11 @@ void total_queue_print()
 }
 void current_statue_print()
 {
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	ready_queue_print();
 	timer_queue_print();
 	printf("\nRunning node = %ld\n\n",currentPCBNode->pid);
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 }
 int start_timer(long *sleep_time)
 {
@@ -329,7 +332,7 @@ void    interrupt_handler( void ) {
     INT32              device_id;
     INT32              status;
     INT32              Index = 0;
-    static BOOL        remove_this_in_your_code = TRUE;   /** TEMP **/
+    //static BOOL        remove_this_in_your_code = TRUE;   /** TEMP **/
     static INT32       how_many_interrupt_entries = 0;    /** TEMP **/
 	Queue readyQueueCursor, timerQueueCursor, preTmpCursor;
 	INT32 currentTime;
@@ -356,6 +359,7 @@ void    interrupt_handler( void ) {
 	//get current absolute time
 	
 	//get the end of readyQueue
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	readyQueueCursor = readyQueue;
 	while(readyQueueCursor->next != NULL)
 	{
@@ -369,6 +373,7 @@ void    interrupt_handler( void ) {
 	{
 		preTmpCursor = timerQueueCursor;
 		timerQueueCursor = timerQueueCursor->next;
+
 		// get current time 
 		MEM_READ( Z502ClockStatus, &currentTime );
 
@@ -377,17 +382,18 @@ void    interrupt_handler( void ) {
 			readyQueueCursor->next = timerQueueCursor;
 			preTmpCursor->next = timerQueueCursor->next;
 
+			timerQueueCursor = timerQueueCursor->next;
+
 			readyQueueCursor = readyQueueCursor->next;
  			readyQueueCursor->next = NULL;
-
 		}
 		else
 		{
 			break;
 		}
 	}
-	
-	
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+
 	MEM_WRITE(Z502InterruptClear, &Index );
 }                                       /* End of interrupt_handler */
 /************************************************************************
