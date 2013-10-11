@@ -61,22 +61,37 @@ int start_timer(long *sleep_time)
 {
 	INT32 currentTime;
 	long _wakeUpTime;
-	Queue timerQueueCursor,nodeTmp;
+	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
 
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	CALL( MEM_READ( Z502ClockStatus, &currentTime ) );
 	_wakeUpTime = currentTime + (INT32)*sleep_time;
 	currentPCBNode->wakeUpTime = _wakeUpTime;
 	
-	timerQueueCursor = timerQueue;
-	while(timerQueueCursor->next != NULL)
-	{
-		timerQueueCursor = timerQueueCursor->next;
-	}
 	nodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
 	nodeTmp->node = currentPCBNode;
-	nodeTmp->next = NULL;
-	timerQueueCursor->next = nodeTmp;
+	timerQueueCursor = timerQueue;
+	if(timerQueueCursor->next == NULL)
+	{
+		nodeTmp->next = NULL;
+		timerQueueCursor->next = nodeTmp;
+	}
+	else
+	{
+		// add current node in the proper index based on wakeUpTime
+		while(timerQueueCursor->next != NULL)
+		{
+			preTimerQueueCursor = timerQueueCursor;
+			timerQueueCursor = timerQueueCursor->next;
+			if(currentPCBNode->wakeUpTime <= timerQueueCursor->node->wakeUpTime)
+			{
+				nodeTmp->next = timerQueueCursor;
+				preTimerQueueCursor->next = nodeTmp;
+			}
+		}
+	}
+	
+	
 
 	MEM_WRITE(Z502TimerStart, sleep_time);
 	dispatcher();
@@ -91,6 +106,7 @@ int dispatcher()
 		Z502Idle();
 	}
 	currentPCBNode = readyQueue->next->node;
+	//free the mode in readyQueue???
 	//pop up the first node from readyQueue
 	readyQueue->next = readyQueue->next->next;
 
