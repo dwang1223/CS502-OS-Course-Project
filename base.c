@@ -53,7 +53,7 @@ Queue readyQueue;
 static long increamentPID = 1; //store the maximum pid for all process
 PCB *pcb;
 static int currentCountOfProcess = 0;
-
+static PCB *currentPCBNode;
 
 long get_pid_by_name(char *name)
 {
@@ -253,7 +253,18 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 		//Create Process
 		case SYSNUM_CREATE_PROCESS:
 			pcb = PCB_item_generator(SystemCallData);
-			*(long *)SystemCallData->Argument[3] = process_creater(pcb);
+			pid = process_creater(pcb);
+			if(pid == ILLEGAL_PRIORITY || pid == NAME_DUPLICATED)
+			{
+				*(long *)SystemCallData->Argument[3] = pid;
+				*(long *)SystemCallData->Argument[4] = ERR_BAD_PARAM;
+			}
+			else
+			{
+				*(long *)SystemCallData->Argument[3] = pid;
+				*(long *)SystemCallData->Argument[4] = ERR_SUCCESS;
+			}
+
 			if(currentCountOfProcess > MAX_COUNT_OF_PROCESSES)
 			{
 				*(long *)SystemCallData->Argument[4] = ERR_BAD_PARAM;
@@ -263,6 +274,16 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			//Get process ID in this section
 			pid = get_pid_by_name((char*)SystemCallData->Argument[0]);
 			*(long*)SystemCallData->Argument[1] = pid;
+			if(pid == NO_PCB_NODE_FOUND)
+			{
+				*(long *)SystemCallData->Argument[2] = ERR_BAD_PARAM;
+			}
+			else
+			{
+				*(long *)SystemCallData->Argument[2] = ERR_SUCCESS;
+			}
+				
+				
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
@@ -288,8 +309,9 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 void    osInit( int argc, char *argv[]  ) {
     void                *next_context;
     INT32               i;
+	PCB *rootPCB;
+	rootPCB = (PCB*)malloc(sizeof(PCB));
 	readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
-	readyQueue->next = NULL;
 
     /* Demonstrates how calling arguments are passed thru to here       */
 
@@ -315,5 +337,19 @@ void    osInit( int argc, char *argv[]  ) {
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
     Z502MakeContext( &next_context, (void *)test1b, USER_MODE );
+
+	// generate root node
+	rootPCB->pid = ROOT_PID;
+	strcpy(rootPCB->name, ROOT_PNAME);
+	rootPCB->context = next_context;
+	rootPCB->prior = ROOT_PRIOR;
+
+	readyQueue->node = rootPCB;
+	readyQueue->next = NULL;
+	currentPCBNode = rootPCB;
+
     Z502SwitchContext( SWITCH_CONTEXT_KILL_MODE, &next_context );
+	
+	
 }                                               // End of osInit
+
