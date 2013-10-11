@@ -114,19 +114,19 @@ int dispatcher()
 }
 long get_pid_by_name(char *name)
 {
-    Queue readyQueueCursor;
+    Queue totalQueueCursor;
 	if(strcmp(name, "") == 0)
 	{
 		return currentPCBNode->pid;
 	}
-    readyQueueCursor = readyQueue;
+    totalQueueCursor = totalQueue;
 
-    while(readyQueueCursor->next != NULL)
+    while(totalQueueCursor->next != NULL)
     {
-        readyQueueCursor = readyQueueCursor->next;
-        if(strcmp(readyQueueCursor->node->name,name) == 0)
+        totalQueueCursor = totalQueueCursor->next;
+        if(strcmp(totalQueueCursor->node->name,name) == 0)
         {
-            return readyQueueCursor->node->pid;
+            return totalQueueCursor->node->pid;
         }
         
     }   
@@ -157,18 +157,24 @@ long process_creater(PCB *pcbNode)
 		printf("\tILLEGAL_PRIORITY\n");
 		return ILLEGAL_PRIORITY;
 	}
-	// duplicate name check
-	readyQueueCursor = readyQueue;
-	while(readyQueueCursor->next != NULL)
+	// duplicate name check (totalQueue used here)
+	totalQueueCursor = totalQueue;
+	while(totalQueueCursor->next != NULL)
 	{
-		readyQueueCursor = readyQueueCursor->next;
-		if(strcmp(readyQueueCursor->node->name,pcbNode->name) == 0)
+		totalQueueCursor = totalQueueCursor->next;
+		if(strcmp(totalQueueCursor->node->name,pcbNode->name) == 0)
 		{
 			printf("\tNAME_DUPLICATED\n");
 			return NAME_DUPLICATED;
 		}
 		
 	}
+	readyQueueCursor = readyQueue;
+	while(readyQueueCursor->next != NULL)
+	{
+		readyQueueCursor = readyQueueCursor->next;
+	}
+
 	//Since everything is OK, now, we can append this node to the readyQueue
 	readyNodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
 	totalNodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
@@ -196,21 +202,51 @@ int process_teminator_by_pid(long pID)
 {
 	Queue tmpQueueCursor;
 	Queue readyQueueCursor = readyQueue;
+	Queue timerQueueCursor = timerQueue;
+	Queue totalQueueCursor = totalQueue;
 
+	while(totalQueueCursor->next != NULL)
+	{
+		tmpQueueCursor = totalQueueCursor;
+		totalQueueCursor = totalQueueCursor->next;
+		if(totalQueueCursor->node->pid == pID)
+		{
+			//printf("\PID is found!\n");
+			tmpQueueCursor->next = totalQueueCursor->next;
+			// free the node, which has been teminated from & removed from the Queue
+			free(totalQueueCursor);
+			//return SUCCESS;
+		}
+	}
+	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 	while(readyQueueCursor->next != NULL)
 	{
 		tmpQueueCursor = readyQueueCursor;
 		readyQueueCursor = readyQueueCursor->next;
 		if(readyQueueCursor->node->pid == pID)
 		{
-			printf("\PID is found!\n");
+			//printf("\PID is found!\n");
 			tmpQueueCursor->next = readyQueueCursor->next;
 			// free the node, which has been teminated from & removed from the Queue
 			free(readyQueueCursor);
 			return SUCCESS;
 		}
 	}
-	printf("\PID is not found!\n");
+
+	while(timerQueueCursor->next != NULL)
+	{
+		tmpQueueCursor = timerQueueCursor;
+		timerQueueCursor = timerQueueCursor->next;
+		if(timerQueueCursor->node->pid == pID)
+		{
+			//printf("\PID is found!\n");
+			tmpQueueCursor->next = timerQueueCursor->next;
+			// free the node, which has been teminated from & removed from the Queue
+			free(timerQueueCursor);
+			return SUCCESS;
+		}
+	}
+	//printf("\PID is not found!\n");
 	return FAIL;
 }
 /************************************************************************
@@ -316,7 +352,7 @@ void    fault_handler( void )
 void    svc( SYSTEM_CALL_DATA *SystemCallData ) 
 {
     short               call_type;
-    static short        do_print = 10;
+    static short        do_print = 100;
     short               i;
 	INT32				Time;
 	INT32				Temp;
@@ -343,7 +379,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	    // Get time service call
 	    case SYSNUM_GET_TIME_OF_DAY:
 		    CALL( MEM_READ( Z502ClockStatus, &Time ) );
-		    printf("time = %ld\n",Time);
             *(INT32 *)SystemCallData->Argument[0] = Time;
             break;
 		
@@ -390,10 +425,18 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
 			//printf("PID = %ld\n", (long)SystemCallData->Argument[0]);
-			process_teminator_by_pid((long)SystemCallData->Argument[0]);
-			if((long)SystemCallData->Argument[0] < 0)
+			
+			if((long)SystemCallData->Argument[0] == -2L)
 			{
 				Z502Halt();
+			}
+			if((long)SystemCallData->Argument[0] == -1L)
+			{
+				process_teminator_by_pid(currentPCBNode->pid);
+			}
+			else
+			{
+				process_teminator_by_pid((long)SystemCallData->Argument[0]);
 			}
             break;
         default:  
