@@ -31,6 +31,8 @@
 #define         ILLEGAL_PRIORITY                -3
 #define         NAME_DUPLICATED					-4
 
+int dispatch();
+
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
 extern INT16         Z502_PAGE_TBL_LENGTH;
@@ -45,6 +47,7 @@ char                 *call_names[] = { "mem_read ", "mem_write",
                             "disk_wrt ", "def_sh_ar" };
 
 // test whether my struct declare is available
+Queue totalQueue;
 Queue timerQueue;
 Queue readyQueue;
 static long increamentPID = 1; //store the maximum pid for all process
@@ -52,6 +55,37 @@ PCB *pcb;
 static int currentCountOfProcess = 0;
 static PCB *currentPCBNode;
 
+int start_timer(long *sleep_time)
+{
+	Queue timerQueueCursor,nodeTmp;
+	timerQueueCursor = timerQueue;
+	while(timerQueueCursor->next != NULL)
+	{
+		timerQueueCursor = timerQueueCursor->next;
+	}
+	nodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
+	nodeTmp->node = currentPCBNode;
+	nodeTmp->next = NULL;
+	timerQueueCursor->next = nodeTmp;
+
+	MEM_WRITE(Z502TimerStart, sleep_time);
+	dispatch();
+	return 0;
+}
+
+int dispatch()
+{
+	if(readyQueue->next != NULL)
+	{
+		currentPCBNode = readyQueue->next->node;
+	}
+
+	while(readyQueue->next == NULL)
+	{
+		currentPCBNode = NULL;
+		Z502Idle();
+	}
+}
 long get_pid_by_name(char *name)
 {
     Queue readyQueueCursor;
@@ -150,7 +184,7 @@ void    interrupt_handler( void ) {
     INT32              Index = 0;
     static BOOL        remove_this_in_your_code = TRUE;   /** TEMP **/
     static INT32       how_many_interrupt_entries = 0;    /** TEMP **/
-
+	Queue queueCursor;
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -159,15 +193,29 @@ void    interrupt_handler( void ) {
     MEM_READ(Z502InterruptStatus, &status );
 
     /** REMOVE THE NEXT SIX LINES **/
-    how_many_interrupt_entries++;                         /** TEMP **/
-    if ( remove_this_in_your_code && ( how_many_interrupt_entries < 20 ) )
+    //how_many_interrupt_entries++;                         /** TEMP **/
+    /*if ( remove_this_in_your_code && ( how_many_interrupt_entries < 20 ) )
         {
         printf( "Interrupt_handler: Found device ID %d with status %d\n",
                         device_id, status );
     }
-
+	*/
     // Clear out this device - we're done with it
-    MEM_WRITE(Z502InterruptClear, &Index );
+    
+	if(timerQueue->next != NULL)
+	{
+		queueCursor = readyQueue;
+		while(queueCursor->next != NULL)
+		{
+			queueCursor = queueCursor->next;
+		}
+		queueCursor->next = timerQueue->next;
+		timerQueue->next = timerQueue->next->next;
+		queueCursor->next->next = NULL;
+	}
+	
+	
+	MEM_WRITE(Z502InterruptClear, &Index );
 }                                       /* End of interrupt_handler */
 /************************************************************************
     FAULT_HANDLER
@@ -240,11 +288,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 		
 		//SLEEP CALL
 		case SYSNUM_SLEEP:
-			Temp = (INT32)SystemCallData->Argument[0]; 
-			MEM_WRITE(Z502TimerStart, &Temp);
-
-			Z502Idle();
-			printf("CALL Sleep Functions here\n");
+			start_timer(&(INT32*)SystemCallData->Argument[0]);
 			break;
 		
 		//Create Process
@@ -281,7 +325,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 				*(long *)SystemCallData->Argument[2] = ERR_SUCCESS;
 			}
 				
-				
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
@@ -312,9 +355,13 @@ void    osInit( int argc, char *argv[]  ) {
     INT32               i;
 	PCB *rootPCB;
 	rootPCB = (PCB*)malloc(sizeof(PCB));
+	totalQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	timerQueue = (QUEUE *)malloc(sizeof(QUEUE));
+	totalQueue->next = NULL;
+	readyQueue->next = NULL;
 	timerQueue->next = NULL;
+
     /* Demonstrates how calling arguments are passed thru to here       */
 
     printf( "Program called with %d arguments:", argc );
@@ -338,18 +385,16 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1b, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1a, USER_MODE );
 
-	// generate root node
+	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
 	rootPCB->prior = ROOT_PRIOR;
 
-	readyQueue->node = rootPCB;
-	readyQueue->next = NULL;
 	currentPCBNode = rootPCB;
-	//readyQueue initial is done
+
 
     Z502SwitchContext( SWITCH_CONTEXT_KILL_MODE, &next_context );
 	

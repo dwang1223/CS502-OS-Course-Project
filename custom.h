@@ -4,6 +4,7 @@ typedef struct
 	char name[140];
 	void *context;
 	int prior;
+	INT32	wakeUpTime;
 } PCB;
 
 typedef struct queue
