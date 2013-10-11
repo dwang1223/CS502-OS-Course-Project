@@ -124,7 +124,7 @@ PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
  */
 long process_creater(PCB *pcbNode)
 {
-	Queue readyQueueCursor,nodeTmp;
+	Queue readyQueueCursor,totalQueueCursor, readyNodeTmp, totalNodeTmp;
 	// priority check
 	if(pcbNode->prior == ILLEGAL_PRIORITY)
 	{
@@ -144,12 +144,24 @@ long process_creater(PCB *pcbNode)
 		
 	}
 	//Since everything is OK, now, we can append this node to the readyQueue
-	nodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
+	readyNodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
+	totalNodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
 	pcbNode->pid = increamentPID++;
-	nodeTmp->node = pcbNode;
-	nodeTmp->next = NULL;
-	//readyQueueCursor = nodeTmp;
-	readyQueueCursor->next = nodeTmp;
+	readyNodeTmp->node = pcbNode;
+	totalNodeTmp->node = pcbNode;
+	readyNodeTmp->next = NULL;
+	totalNodeTmp->next = NULL;
+	readyQueueCursor->next = readyNodeTmp;
+
+	//Add the new node into the end of totalQueue
+	/**************************************************/
+	totalQueueCursor = totalQueue;
+	while(totalQueueCursor->next != NULL)
+	{
+		totalQueueCursor = totalQueueCursor->next;
+	}
+	totalQueueCursor->next = totalNodeTmp;
+	/**************************************************/
 	currentCountOfProcess++;
 	return pcbNode->pid;
 }
@@ -385,14 +397,14 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1a, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1c, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
 	rootPCB->prior = ROOT_PRIOR;
-
+	totalQueue->node = rootPCB;
 	currentPCBNode = rootPCB;
 
 
