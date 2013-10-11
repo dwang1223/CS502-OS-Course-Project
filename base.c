@@ -57,6 +57,48 @@ PCB *pcb;
 static int currentCountOfProcess = 0;
 static PCB *currentPCBNode;
 
+void ready_queue_print()
+{
+	Queue readyQueueCursor = readyQueue;
+	printf("\nreadyQueue:\t");
+	while(readyQueueCursor->next != NULL)
+	{
+		readyQueueCursor = readyQueueCursor->next;
+		printf("%ld  ",readyQueueCursor->node->pid);
+	}
+	printf("\n");
+}
+void timer_queue_print()
+{
+	INT32 currentTime;
+	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
+	Queue timerQueueCursor = timerQueue;
+	MEM_READ( Z502ClockStatus, &currentTime );
+	printf("\ntimerQueue(%d):\t",currentTime);
+	while(timerQueueCursor->next != NULL)
+	{
+		timerQueueCursor = timerQueueCursor->next;
+		printf("%ld(%d)  ",timerQueueCursor->node->pid, timerQueueCursor->node->wakeUpTime);
+	}
+	printf("\n");
+}
+void total_queue_print()
+{
+	Queue totalQueueCursor = totalQueue;
+	printf("\ntotalQueue:\t");
+	while(totalQueueCursor->next != NULL)
+	{
+		totalQueueCursor = totalQueueCursor->next;
+		printf("%ld  ",totalQueueCursor->node->pid);
+	}
+	printf("\n");
+}
+void current_statue_print()
+{
+	ready_queue_print();
+	timer_queue_print();
+	printf("\nRunning node = %ld\n\n",currentPCBNode->pid);
+}
 int start_timer(long *sleep_time)
 {
 	INT32 currentTime;
@@ -87,12 +129,17 @@ int start_timer(long *sleep_time)
 			{
 				nodeTmp->next = timerQueueCursor;
 				preTimerQueueCursor->next = nodeTmp;
+				break;
 			}
+		}
+
+		if(currentPCBNode->wakeUpTime > timerQueueCursor->node->wakeUpTime)
+		{
+			timerQueueCursor->next = nodeTmp;
+			nodeTmp->next = NULL;
 		}
 	}
 	
-	
-
 	MEM_WRITE(Z502TimerStart, sleep_time);
 	dispatcher();
 	return 0;
@@ -115,6 +162,7 @@ int dispatcher()
 long get_pid_by_name(char *name)
 {
     Queue totalQueueCursor;
+	current_statue_print();
 	if(strcmp(name, "") == 0)
 	{
 		return currentPCBNode->pid;
@@ -197,6 +245,28 @@ long process_creater(PCB *pcbNode)
 	currentCountOfProcess++;
 	return pcbNode->pid;
 }
+void myself_teminator( )
+{
+	Queue tmpQueueCursor;
+	Queue totalQueueCursor = totalQueue;
+
+	while(totalQueueCursor->next != NULL)
+	{
+		tmpQueueCursor = totalQueueCursor;
+		totalQueueCursor = totalQueueCursor->next;
+		if(totalQueueCursor->node->pid == currentPCBNode->pid)
+		{
+			//printf("\PID is found!\n");
+			tmpQueueCursor->next = totalQueueCursor->next;
+			// free the node, which has been teminated from & removed from the Queue
+			free(totalQueueCursor);
+			break;
+			//return SUCCESS;
+		}
+	}
+
+	currentPCBNode = NULL;
+}
 
 int process_teminator_by_pid(long pID)
 {
@@ -216,6 +286,7 @@ int process_teminator_by_pid(long pID)
 			// free the node, which has been teminated from & removed from the Queue
 			free(totalQueueCursor);
 			//return SUCCESS;
+			break;
 		}
 	}
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -290,7 +361,7 @@ void    interrupt_handler( void ) {
 	{
 		readyQueueCursor = readyQueueCursor->next;
 	}
-
+	//printf("\nInterrupt here\n\n");
 	//add the first node from timerQueue to the end of readyQueue
 	timerQueueCursor = timerQueue;
 	while(timerQueueCursor->next != NULL)
@@ -352,7 +423,7 @@ void    fault_handler( void )
 void    svc( SYSTEM_CALL_DATA *SystemCallData ) 
 {
     short               call_type;
-    static short        do_print = 100;
+    static short        do_print = 10;
     short               i;
 	INT32				Time;
 	INT32				Temp;
@@ -424,15 +495,15 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
-			//printf("PID = %ld\n", (long)SystemCallData->Argument[0]);
-			
 			if((long)SystemCallData->Argument[0] == -2L)
 			{
 				Z502Halt();
 			}
-			if((long)SystemCallData->Argument[0] == -1L)
+			else if((long)SystemCallData->Argument[0] == -1L)
 			{
-				process_teminator_by_pid(currentPCBNode->pid);
+				printf("Current %ld is killed!\n", currentPCBNode->pid ); 
+				myself_teminator();
+				dispatcher();
 			}
 			else
 			{
@@ -458,6 +529,8 @@ void    osInit( int argc, char *argv[]  ) {
     void                *next_context;
     INT32               i;
 	PCB *rootPCB;
+	Queue totalNodeTmp;
+	totalNodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
 	rootPCB = (PCB*)malloc(sizeof(PCB));
 	totalQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
@@ -496,7 +569,9 @@ void    osInit( int argc, char *argv[]  ) {
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
 	rootPCB->prior = ROOT_PRIOR;
-	totalQueue->node = rootPCB;
+	totalNodeTmp->node = rootPCB;
+	totalNodeTmp->next = NULL;
+	totalQueue->next = totalNodeTmp;
 	currentPCBNode = rootPCB;
 
 
