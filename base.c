@@ -30,9 +30,6 @@
 //#include             "z502.h"
 #define         ILLEGAL_PRIORITY                -3
 #define         NAME_DUPLICATED					-4
-#define         SUCCESS							 1
-#define         FAIL							 0
-#define         NO_PCB_NODE_FOUND               -10L
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -60,7 +57,7 @@ long get_pid_by_name(char *name)
     Queue readyQueueCursor;
 	if(strcmp(name, "") == 0)
 	{
-		return ROOT_PID;
+		return currentPCBNode->pid;
 	}
     readyQueueCursor = readyQueue;
 
@@ -269,6 +266,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				*(long *)SystemCallData->Argument[4] = ERR_BAD_PARAM;
 			}
+			
 			break;
 		case SYSNUM_GET_PROCESS_ID:
 			//Get process ID in this section
@@ -287,9 +285,12 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
-			printf("PID = %ld\n", (long)SystemCallData->Argument[0]);
+			//printf("PID = %ld\n", (long)SystemCallData->Argument[0]);
 			process_teminator_by_pid((long)SystemCallData->Argument[0]);
-            //Z502Halt();
+			if((long)SystemCallData->Argument[0] < 0)
+			{
+				Z502Halt();
+			}
             break;
         default:  
             printf( "ERROR!  call_type not recognized!\n" ); 
@@ -312,7 +313,8 @@ void    osInit( int argc, char *argv[]  ) {
 	PCB *rootPCB;
 	rootPCB = (PCB*)malloc(sizeof(PCB));
 	readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
-
+	timerQueue = (QUEUE *)malloc(sizeof(QUEUE));
+	timerQueue->next = NULL;
     /* Demonstrates how calling arguments are passed thru to here       */
 
     printf( "Program called with %d arguments:", argc );
@@ -347,6 +349,7 @@ void    osInit( int argc, char *argv[]  ) {
 	readyQueue->node = rootPCB;
 	readyQueue->next = NULL;
 	currentPCBNode = rootPCB;
+	//readyQueue initial is done
 
     Z502SwitchContext( SWITCH_CONTEXT_KILL_MODE, &next_context );
 	
