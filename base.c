@@ -218,6 +218,7 @@ void    interrupt_handler( void ) {
 	*/
     // Clear out this device - we're done with it
     
+	//add the first node from timerQueue to the end of readyQueue
 	if(timerQueue->next != NULL)
 	{
 		queueCursor = readyQueue;
