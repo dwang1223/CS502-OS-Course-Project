@@ -63,11 +63,10 @@ int start_timer(long *sleep_time)
 	long _wakeUpTime;
 	Queue timerQueueCursor,nodeTmp;
 
-	//get current absolute time
+	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	CALL( MEM_READ( Z502ClockStatus, &currentTime ) );
-	_wakeUpTime = (long)currentTime + *sleep_time;
+	_wakeUpTime = currentTime + (INT32)*sleep_time;
 	currentPCBNode->wakeUpTime = _wakeUpTime;
-
 	
 	timerQueueCursor = timerQueue;
 	while(timerQueueCursor->next != NULL)
@@ -209,7 +208,10 @@ void    interrupt_handler( void ) {
     INT32              Index = 0;
     static BOOL        remove_this_in_your_code = TRUE;   /** TEMP **/
     static INT32       how_many_interrupt_entries = 0;    /** TEMP **/
-	Queue queueCursor;
+	Queue readyQueueCursor, timerQueueCursor, preTmpCursor;
+	INT32 currentTime;
+
+
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -227,17 +229,34 @@ void    interrupt_handler( void ) {
 	*/
     // Clear out this device - we're done with it
     
-	//add the first node from timerQueue to the end of readyQueue
-	if(timerQueue->next != NULL)
+
+	//get current absolute time
+	MEM_READ( Z502ClockStatus, &currentTime );
+	//get the end of readyQueue
+	readyQueueCursor = readyQueue;
+	while(readyQueueCursor->next != NULL)
 	{
-		queueCursor = readyQueue;
-		while(queueCursor->next != NULL)
+		readyQueueCursor = readyQueueCursor->next;
+	}
+
+	//add the first node from timerQueue to the end of readyQueue
+	timerQueueCursor = timerQueue;
+	while(timerQueueCursor->next != NULL)
+	{
+		preTmpCursor = timerQueueCursor;
+		timerQueueCursor = timerQueueCursor->next;
+
+		if(timerQueueCursor->node->wakeUpTime <= currentTime)
 		{
-			queueCursor = queueCursor->next;
+			readyQueueCursor->next = timerQueueCursor;
+			preTmpCursor->next = timerQueueCursor->next;
+			readyQueueCursor = readyQueueCursor->next;
+			readyQueueCursor->next = NULL;
 		}
-		queueCursor->next = timerQueue->next;
-		timerQueue->next = timerQueue->next->next;
-		queueCursor->next->next = NULL;
+		else
+		{
+			break;
+		}
 	}
 	
 	
