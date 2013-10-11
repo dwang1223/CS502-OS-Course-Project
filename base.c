@@ -99,7 +99,15 @@ void current_statue_print()
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	ready_queue_print();
 	timer_queue_print();
-	printf("\nRunning node = %ld\n\n",currentPCBNode->pid);
+	if(currentPCBNode != NULL)
+	{
+		printf("\nRunning node = %ld\n\n",currentPCBNode->pid);
+	}
+	else
+	{
+		printf("\nRunning node is NULL\n\n");
+	}
+	
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 }
 int start_timer(long *sleep_time)
@@ -155,11 +163,12 @@ int dispatcher()
 		currentPCBNode = NULL;
 		Z502Idle();
 	}
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	currentPCBNode = readyQueue->next->node;
 	//free the mode in readyQueue???
 	//pop up the first node from readyQueue
 	readyQueue->next = readyQueue->next->next;
-
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	Z502SwitchContext( SWITCH_CONTEXT_SAVE_MODE, &(currentPCBNode->context) );
 }
 long get_pid_by_name(char *name)
@@ -514,6 +523,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				printf("Current %ld is killed!\n", currentPCBNode->pid ); 
 				myself_teminator();
+				current_statue_print();
 				dispatcher();
 			}
 			else
