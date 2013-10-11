@@ -22,16 +22,18 @@
 	4.0  July    2013: Major portions rewritten to support multiple threads
 ************************************************************************/
 
+#include			 "malloc.h"
 #include             "global.h"
 #include             "syscalls.h"
 #include             "protos.h"
 #include             "string.h"
 #include             "custom.h"
+
 //#include             "z502.h"
 #define         ILLEGAL_PRIORITY                -3
 #define         NAME_DUPLICATED					-4
 
-int dispatch();
+int dispatcher();
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -69,22 +71,20 @@ int start_timer(long *sleep_time)
 	timerQueueCursor->next = nodeTmp;
 
 	MEM_WRITE(Z502TimerStart, sleep_time);
-	dispatch();
+	dispatcher();
 	return 0;
 }
 
-int dispatch()
+int dispatcher()
 {
-	if(readyQueue->next != NULL)
-	{
-		currentPCBNode = readyQueue->next->node;
-	}
-
 	while(readyQueue->next == NULL)
 	{
 		currentPCBNode = NULL;
 		Z502Idle();
 	}
+	currentPCBNode = readyQueue->next->node;
+
+	Z502SwitchContext( SWITCH_CONTEXT_SAVE_MODE, &(currentPCBNode->context) );
 }
 long get_pid_by_name(char *name)
 {
