@@ -382,7 +382,7 @@ void    interrupt_handler( void ) {
 	//add the first node from timerQueue to the end of readyQueue
 	timerQueueCursor = timerQueue;
 
-	while(timerQueueCursor->next != NULL)
+	while(timerQueueCursor != NULL && timerQueueCursor->next != NULL)
 	{
 		preTmpCursor = timerQueueCursor;
 		timerQueueCursor = timerQueueCursor->next;
