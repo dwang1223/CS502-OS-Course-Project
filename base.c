@@ -450,7 +450,33 @@ int suspend_by_PID(long pid)
 }
 int resume_by_PID(long pid)
 {
-	return 0;
+	Queue suspendQueueCursor, preQueueCursor, queueNode;
+	// first check whether the pid is legal or not
+	if(pid > MAX_LEGAL_PID)
+	{
+		return ILLEGAL_PID;
+	}
+	// then check this pid is not in suspendQueue, and get the end point of suspendQueue: suspendQueueCursor
+	suspendQueueCursor = suspendQueue;
+	while(suspendQueueCursor != NULL && suspendQueueCursor->next != NULL)
+	{
+		preQueueCursor = suspendQueueCursor;
+		suspendQueueCursor = suspendQueueCursor->next;
+		if(suspendQueueCursor->node->pid == pid)
+		{
+			// generate a new, which will be added to readyQueue
+			queueNode = (QUEUE *)malloc(sizeof(QUEUE));
+			queueNode->node = suspendQueueCursor->node;
+			queueNode->next = NULL;
+			// add the node to readyQueue
+			new_node_add_to_readyQueue(queueNode, globalAddType);
+
+			// now, we will remove the node from suspendQueue
+			preQueueCursor->next = suspendQueueCursor->next;
+			return SUCCESS;
+		}
+	}
+	return PCB_NOT_SUSPENDED;
 }
 /************************************************************************
     INTERRUPT_HANDLER

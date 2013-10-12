@@ -26,7 +26,7 @@ typedef struct queue
 
 #define         ILLEGAL_PID							-1
 #define         ALREADY_SUSPENDED					-2
-
+#define         PCB_NOT_SUSPENDED					-3
 
 #define                  NUM_RAND_BUCKETS          128
 #define                  DO_LOCK                     1
