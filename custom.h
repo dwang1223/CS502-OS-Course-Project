@@ -20,6 +20,8 @@ typedef struct queue
 #define         SUCCESS							1
 #define         FAIL							0
 #define         NO_PCB_NODE_FOUND              -10L
+#define         ADD_BY_END							1
+#define         ADD_BY_PRIOR						2
 
 #define                  NUM_RAND_BUCKETS          128
 #define                  DO_LOCK                     1

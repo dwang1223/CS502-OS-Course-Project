@@ -205,6 +205,25 @@ PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 	pcb->prior = (int)SystemCallData->Argument[2];
 	return pcb;
 }
+void new_node_add_to_readyQueue(Queue readyNode, int addType)
+{
+	Queue readyQueueCursor;
+	if(addType == ADD_BY_PRIOR)
+	{
+		;
+	}
+	else 
+	{
+		readyQueueCursor = readyQueue;
+		while(readyQueueCursor->next != NULL)
+		{
+			readyQueueCursor = readyQueueCursor->next;
+
+		}
+		readyQueueCursor->next = readyNode;
+		}
+}
+
 /* 
  * if priority is legal & process name is unique, 
  * then create this process, and add it to the end of readyQueue 
@@ -229,13 +248,10 @@ long process_creater(PCB *pcbNode)
 		}
 		
 	}
-	readyQueueCursor = readyQueue;
-	while(readyQueueCursor->next != NULL)
-	{
-		readyQueueCursor = readyQueueCursor->next;
-	}
 
 	//Since everything is OK, now, we can append this node to the readyQueue
+	/* * * * * * * * * * To create new node below * * * * * * * * * * */
+	//Create two nodes, one for readyQueue, one for totalQueue
 	readyNodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
 	totalNodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
 	pcbNode->pid = increamentPID++;
@@ -243,8 +259,17 @@ long process_creater(PCB *pcbNode)
 	totalNodeTmp->node = pcbNode;
 	readyNodeTmp->next = NULL;
 	totalNodeTmp->next = NULL;
-	readyQueueCursor->next = readyNodeTmp;
 
+	new_node_add_to_readyQueue(readyNodeTmp, ADD_BY_END);
+	/*
+	readyQueueCursor = readyQueue;
+	while(readyQueueCursor->next != NULL)
+	{
+		readyQueueCursor = readyQueueCursor->next;
+
+	}
+	readyQueueCursor->next = readyNodeTmp;
+	*/
 	//Add the new node into the end of totalQueue
 	/**************************************************/
 	totalQueueCursor = totalQueue;
