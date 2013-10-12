@@ -115,6 +115,7 @@ int start_timer(long *sleep_time)
 	INT32 currentTime;
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
+	current_statue_print();
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	MEM_READ( Z502ClockStatus, &currentTime );
@@ -176,7 +177,7 @@ int dispatcher()
 long get_pid_by_name(char *name)
 {
     Queue totalQueueCursor;
-	current_statue_print();
+	//current_statue_print();
 	if(strcmp(name, "") == 0)
 	{
 		return currentPCBNode->pid;
@@ -207,10 +208,35 @@ PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 }
 void new_node_add_to_readyQueue(Queue readyNode, int addType)
 {
-	Queue readyQueueCursor;
+	Queue readyQueueCursor, tmpPreCursor;
 	if(addType == ADD_BY_PRIOR)
 	{
-		;
+		if(readyQueue->next == NULL)
+		{
+			readyQueue->next = readyNode;
+		}
+		else
+		{
+			readyQueueCursor = readyQueue;
+			while(readyQueueCursor->next != NULL)
+			{
+				tmpPreCursor = readyQueueCursor;
+				readyQueueCursor = readyQueueCursor->next;
+				if(readyNode->node->prior <= readyQueueCursor->node->prior)
+				{
+					readyNode->next = readyQueueCursor;
+					tmpPreCursor->next = readyNode;
+					break;
+				}
+			}
+
+			if(readyNode->node->prior > readyQueueCursor->node->prior)
+			{
+				readyQueueCursor->next = readyNode;
+				readyNode->next = NULL;
+			}
+		}
+		
 	}
 	else 
 	{
@@ -221,7 +247,7 @@ void new_node_add_to_readyQueue(Queue readyNode, int addType)
 
 		}
 		readyQueueCursor->next = readyNode;
-		}
+	}
 }
 
 /* 
@@ -260,7 +286,7 @@ long process_creater(PCB *pcbNode)
 	readyNodeTmp->next = NULL;
 	totalNodeTmp->next = NULL;
 
-	new_node_add_to_readyQueue(readyNodeTmp, ADD_BY_END);
+	new_node_add_to_readyQueue(readyNodeTmp, ADD_BY_PRIOR);
 	/*
 	readyQueueCursor = readyQueue;
 	while(readyQueueCursor->next != NULL)
@@ -427,6 +453,15 @@ void    interrupt_handler( void ) {
 			break;
 		}
 	}
+
+	//reset sleep time
+	if(timerQueue->next != NULL)
+	{
+		MEM_READ( Z502ClockStatus, &currentTime );
+		currentTime = timerQueue->next->node->wakeUpTime-currentTime;
+		MEM_WRITE(Z502TimerStart, &currentTime);
+	}
+
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 
 	MEM_WRITE(Z502InterruptClear, &Index );
@@ -609,7 +644,7 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1c, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1d, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
