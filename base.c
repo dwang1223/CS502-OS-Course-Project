@@ -393,41 +393,57 @@ int process_teminator_by_pid(long pID)
 }
 int suspend_by_PID(long pid)
 {
-	Queue queueCursor;
+	Queue suspendQueueCursor, queueCursor, preQueueCursor;
 	// first check whether the pid is legal or not
 	if(pid > MAX_LEGAL_PID)
 	{
 		return ILLEGAL_PID;
 	}
-	// then check this pid is not in suspendQueue
-	queueCursor = suspendQueue;
-	while(queueCursor != NULL && queueCursor->next != NULL)
+	// then check this pid is not in suspendQueue, and get the end point of suspendQueue: suspendQueueCursor
+	suspendQueueCursor = suspendQueue;
+	while(suspendQueueCursor != NULL && suspendQueueCursor->next != NULL)
 	{
-		queueCursor = queueCursor->next;
-		if(queueCursor->node->pid == pid)
+		suspendQueueCursor = suspendQueueCursor->next;
+		if(suspendQueueCursor->node->pid == pid)
 		{
 			return ALREADY_SUSPENDED;
 		}
 	}
-	// Now everthing is OK, next step is to suspend the very node
+	// Now everything is OK, next step is to suspend the very node
 	// check readyQueue
 	queueCursor = readyQueue;
 	while(queueCursor != NULL && queueCursor->next != NULL)
 	{
+		preQueueCursor = queueCursor;
 		queueCursor = queueCursor->next;
 		if(queueCursor->node->pid == pid)
 		{
-			return ALREADY_SUSPENDED;
+			// remove the node from readyQueue
+			preQueueCursor->next = queueCursor->next; 
+			// add the node to suspendQueue
+			suspendQueueCursor->next = queueCursor;
+			// reset the next point to end of suspendQueue to NULL
+			suspendQueueCursor->next->next = NULL;
+
+			return SUCCESS;
 		}
 	}
 	// check timerQueue
 	queueCursor = timerQueue;
 	while(queueCursor != NULL && queueCursor->next != NULL)
 	{
+		preQueueCursor = queueCursor;
 		queueCursor = queueCursor->next;
 		if(queueCursor->node->pid == pid)
 		{
-			return ALREADY_SUSPENDED;
+			// remove the node from readyQueue
+			preQueueCursor->next = queueCursor->next; 
+			// add the node to suspendQueue
+			suspendQueueCursor->next = queueCursor;
+			// reset the next point to end of suspendQueue to NULL
+			suspendQueueCursor->next->next = NULL;
+
+			return SUCCESS;
 		}
 	}
 
@@ -570,6 +586,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	INT32				Temp;
 	PCB					*pcb;
 	static long			pid;
+	int					returnStatus;
 	//extern long			Z502_REG1;
 
     call_type = (short)SystemCallData->SystemCallNumber;
@@ -638,11 +655,27 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 		// suspend system call
 		case SYSNUM_SUSPEND_PROCESS:
 			pid =(long)SystemCallData->Argument[0];
-			suspend_by_PID(pid);
+			returnStatus = suspend_by_PID(pid);
+			if(returnStatus == SUCCESS)
+			{
+				*(long *)SystemCallData->Argument[1] = ERR_SUCCESS;
+			}
+			else
+			{
+				*(long *)SystemCallData->Argument[1] = ERR_BAD_PARAM;
+			}
 			break;
 		case SYSNUM_RESUME_PROCESS:
 			pid =(long)SystemCallData->Argument[0];
-			resume_by_ID(pid);
+			returnStatus = resume_by_PID(pid);
+			if(returnStatus == SUCCESS)
+			{
+				*(long *)SystemCallData->Argument[1] = ERR_SUCCESS;
+			}
+			else
+			{
+				*(long *)SystemCallData->Argument[1] = ERR_BAD_PARAM;
+			}
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
@@ -654,8 +687,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				printf("Current %ld is killed!\n", currentPCBNode->pid ); 
 				myself_teminator();
-				//current_statue_print();
-				//dispatcher();
 			}
 			else
 			{
