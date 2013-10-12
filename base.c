@@ -57,6 +57,7 @@ PCB *pcb;
 static int currentCountOfProcess = 0;
 static PCB *currentPCBNode;
 INT32 LockResult,LockResult2;
+int globalAddType = ADD_BY_PRIOR; //ADD_BY_END
 
 void ready_queue_print()
 {
@@ -160,9 +161,13 @@ int start_timer(long *sleep_time)
 
 int dispatcher()
 {
-
 	while(readyQueue->next == NULL)
 	{
+		//if no process in the whole program, just halt 
+		if(totalQueue->next == NULL)
+		{
+			Z502Halt();
+		}
 		currentPCBNode = NULL;
 		CALL(Z502Idle());
 	}
@@ -286,7 +291,7 @@ long process_creater(PCB *pcbNode)
 	readyNodeTmp->next = NULL;
 	totalNodeTmp->next = NULL;
 
-	new_node_add_to_readyQueue(readyNodeTmp, ADD_BY_PRIOR);
+	new_node_add_to_readyQueue(readyNodeTmp, globalAddType);
 	/*
 	readyQueueCursor = readyQueue;
 	while(readyQueueCursor->next != NULL)
@@ -396,9 +401,9 @@ void    interrupt_handler( void ) {
     INT32              Index = 0;
     //static BOOL        remove_this_in_your_code = TRUE;   /** TEMP **/
     static INT32       how_many_interrupt_entries = 0;    /** TEMP **/
-	Queue readyQueueCursor, timerQueueCursor, preTmpCursor;
+	Queue readyQueueCursor, timerQueueCursor, preTmpCursor, queueNode;
 	INT32 currentTime;
-
+	
 
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
@@ -422,11 +427,13 @@ void    interrupt_handler( void ) {
 	
 	//get the end of readyQueue
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	/*
 	readyQueueCursor = readyQueue;
 	while(readyQueueCursor->next != NULL)
 	{
 		readyQueueCursor = readyQueueCursor->next;
 	}
+	*/
 	//add the first node from timerQueue to the end of readyQueue
 	timerQueueCursor = timerQueue;
 
@@ -440,13 +447,20 @@ void    interrupt_handler( void ) {
 
 		if(timerQueueCursor->node->wakeUpTime <= currentTime)
 		{
-			readyQueueCursor->next = timerQueueCursor;
+			//clone a queue node
+			queueNode = (QUEUE *)malloc(sizeof(QUEUE));
+			queueNode->node = timerQueueCursor->node;
+			queueNode->next = NULL;
+
+			new_node_add_to_readyQueue(queueNode, globalAddType);
+
+			//readyQueueCursor->next = timerQueueCursor;
 			preTmpCursor->next = timerQueueCursor->next;
 
 			timerQueueCursor = timerQueueCursor->next;
 
-			readyQueueCursor = readyQueueCursor->next;
- 			readyQueueCursor->next = NULL;
+			//readyQueueCursor = readyQueueCursor->next;
+ 			//readyQueueCursor->next = NULL;
 		}
 		else
 		{
