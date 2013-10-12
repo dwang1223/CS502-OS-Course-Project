@@ -394,7 +394,13 @@ int process_teminator_by_pid(long pID)
 int suspend_by_PID(long pid)
 {
 	Queue suspendQueueCursor, queueCursor, preQueueCursor;
-	// first check whether the pid is legal or not
+	// check whether it tries to suspend itself, it will not be legal here, in my program
+	if(pid == -1)
+	{
+		return SLEF_SUSPENDED_ERR;
+	}
+
+	// check whether the pid is legal or not
 	if(pid > MAX_LEGAL_PID)
 	{
 		return ILLEGAL_PID;
