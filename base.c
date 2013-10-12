@@ -67,23 +67,26 @@ void ready_queue_print()
 	while(readyQueueCursor->next != NULL)
 	{
 		readyQueueCursor = readyQueueCursor->next;
-		printf("%ld  ",readyQueueCursor->node->pid);
+		printf("%ld(%d)  ",readyQueueCursor->node->pid, readyQueueCursor->node->prior);
 	}
 	printf("\n");
 }
 void timer_queue_print()
 {
-	INT32 currentTime;
+	INT32 currentTime = 0;
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	Queue timerQueueCursor = timerQueue;
+	READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
 	MEM_READ( Z502ClockStatus, &currentTime );
 	printf("\ntimerQueue(%d):\t",currentTime);
+	//printf("\ntimerQueue:\t");
 	while(timerQueueCursor->next != NULL)
 	{
 		timerQueueCursor = timerQueueCursor->next;
 		printf("%ld(%d)  ",timerQueueCursor->node->pid, timerQueueCursor->node->wakeUpTime);
 	}
 	printf("\n");
+	READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
 }
 void total_queue_print()
 {
@@ -117,7 +120,7 @@ int start_timer(long *sleep_time)
 	INT32 currentTime;
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
-	//current_statue_print(); 
+	current_statue_print(); 
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	MEM_READ( Z502ClockStatus, &currentTime );
@@ -486,7 +489,7 @@ int resume_by_PID(long pid)
 }
 int priority_changer(long pid, int priority)
 {
-	Queue queueCursor;
+	Queue queueCursor,preQueueCursor, queueNode;
 	// check whether the pid is legal or not
 	if(priority > MAX_LEGAL_PRIOR)
 	{
@@ -510,14 +513,21 @@ int priority_changer(long pid, int priority)
 			break;
 		}
 	}
+
 	// check readyQueue
+	// after priority is changed, we should resort readyQueue
 	queueCursor = readyQueue;
 	while(queueCursor != NULL && queueCursor->next != NULL)
 	{
+		preQueueCursor = queueCursor;
 		queueCursor = queueCursor->next;
 		if(queueCursor->node->pid == pid)
 		{
 			queueCursor->node->prior = priority;
+			queueNode = queueCursor;
+			preQueueCursor->next = queueCursor->next; // remove the node from readyQueue
+			queueNode->next = NULL;
+			new_node_add_to_readyQueue(queueNode, globalAddType); // add the node into readyQueue
 			return SUCCESS;
 		}
 	}
@@ -860,7 +870,7 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1g, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1h, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;

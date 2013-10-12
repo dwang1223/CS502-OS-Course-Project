@@ -15,7 +15,7 @@ typedef struct queue
 
 #define			MAX_COUNT_OF_PROCESSES			25
 #define			ROOT_PID						0L
-#define			ROOT_PRIOR						0
+#define			ROOT_PRIOR						20
 #define			ROOT_PNAME						"I am ROOT"
 #define         SUCCESS							1
 #define         FAIL							0
