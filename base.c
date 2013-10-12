@@ -115,7 +115,7 @@ int start_timer(long *sleep_time)
 	INT32 currentTime;
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
-	current_statue_print();
+	current_statue_print(); 
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	MEM_READ( Z502ClockStatus, &currentTime );
