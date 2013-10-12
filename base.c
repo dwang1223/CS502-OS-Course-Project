@@ -216,7 +216,6 @@ long process_creater(PCB *pcbNode)
 	// priority check
 	if(pcbNode->prior == ILLEGAL_PRIORITY)
 	{
-		printf("\tILLEGAL_PRIORITY\n");
 		return ILLEGAL_PRIORITY;
 	}
 	// duplicate name check (totalQueue used here)
@@ -226,7 +225,6 @@ long process_creater(PCB *pcbNode)
 		totalQueueCursor = totalQueueCursor->next;
 		if(strcmp(totalQueueCursor->node->name,pcbNode->name) == 0)
 		{
-			printf("\tNAME_DUPLICATED\n");
 			return NAME_DUPLICATED;
 		}
 		
@@ -378,7 +376,6 @@ void    interrupt_handler( void ) {
 	{
 		readyQueueCursor = readyQueueCursor->next;
 	}
-	//printf("\nInterrupt here\n\n");
 	//add the first node from timerQueue to the end of readyQueue
 	timerQueueCursor = timerQueue;
 
@@ -527,8 +524,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				printf("Current %ld is killed!\n", currentPCBNode->pid ); 
 				myself_teminator();
-				current_statue_print();
-				dispatcher();
+				//current_statue_print();
+				//dispatcher();
 			}
 			else
 			{
