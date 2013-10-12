@@ -115,9 +115,9 @@ int start_timer(long *sleep_time)
 	INT32 currentTime;
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
-
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
-	CALL( MEM_READ( Z502ClockStatus, &currentTime ) );
+	MEM_READ( Z502ClockStatus, &currentTime );
 	_wakeUpTime = currentTime + (INT32)*sleep_time;
 	currentPCBNode->wakeUpTime = _wakeUpTime;
 	
@@ -152,16 +152,18 @@ int start_timer(long *sleep_time)
 	}
 	
 	MEM_WRITE(Z502TimerStart, sleep_time);
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	dispatcher();
 	return 0;
 }
 
 int dispatcher()
 {
+
 	while(readyQueue->next == NULL)
 	{
 		currentPCBNode = NULL;
-		Z502Idle();
+		CALL(Z502Idle());
 	}
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	currentPCBNode = readyQueue->next->node;
@@ -198,7 +200,7 @@ PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 	void *next_context;
 	pcb = (PCB*)malloc(sizeof(PCB));
 	strcpy(pcb->name, (char*)SystemCallData->Argument[0]);
-	CALL(Z502MakeContext( &next_context, (void *)SystemCallData->Argument[1], USER_MODE ));
+	Z502MakeContext( &next_context, (void *)SystemCallData->Argument[1], USER_MODE );
 	pcb->context = next_context;
 	pcb->prior = (int)SystemCallData->Argument[2];
 	return pcb;
@@ -278,6 +280,8 @@ void myself_teminator( )
 	}
 
 	currentPCBNode = NULL;
+	dispatcher();
+
 }
 
 int process_teminator_by_pid(long pID)
@@ -469,7 +473,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	    
 	    // Get time service call
 	    case SYSNUM_GET_TIME_OF_DAY:
-		    CALL( MEM_READ( Z502ClockStatus, &Time ) );
+		    MEM_READ( Z502ClockStatus, &Time );
             *(INT32 *)SystemCallData->Argument[0] = Time;
             break;
 		
