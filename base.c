@@ -52,6 +52,7 @@ char                 *call_names[] = { "mem_read ", "mem_write",
 Queue totalQueue;
 Queue timerQueue;
 Queue readyQueue;
+Queue suspendQueue;
 static long increamentPID = 1; //store the maximum pid for all process
 PCB *pcb;
 static int currentCountOfProcess = 0;
@@ -116,7 +117,7 @@ int start_timer(long *sleep_time)
 	INT32 currentTime;
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
-	current_statue_print(); 
+	//current_statue_print(); 
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	MEM_READ( Z502ClockStatus, &currentTime );
@@ -390,6 +391,51 @@ int process_teminator_by_pid(long pID)
 	//printf("\PID is not found!\n");
 	return FAIL;
 }
+int suspend_by_PID(long pid)
+{
+	Queue queueCursor;
+	// first check whether the pid is legal or not
+	if(pid > MAX_LEGAL_PID)
+	{
+		return ILLEGAL_PID;
+	}
+	// then check this pid is not in suspendQueue
+	queueCursor = suspendQueue;
+	while(queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		if(queueCursor->node->pid == pid)
+		{
+			return ALREADY_SUSPENDED;
+		}
+	}
+	// Now everthing is OK, next step is to suspend the very node
+	// check readyQueue
+	queueCursor = readyQueue;
+	while(queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		if(queueCursor->node->pid == pid)
+		{
+			return ALREADY_SUSPENDED;
+		}
+	}
+	// check timerQueue
+	queueCursor = timerQueue;
+	while(queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		if(queueCursor->node->pid == pid)
+		{
+			return ALREADY_SUSPENDED;
+		}
+	}
+
+}
+int resume_by_PID(long pid)
+{
+	return 0;
+}
 /************************************************************************
     INTERRUPT_HANDLER
         When the Z502 gets a hardware interrupt, it transfers control to
@@ -588,6 +634,16 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			}
 				
 			break;
+
+		// suspend system call
+		case SYSNUM_SUSPEND_PROCESS:
+			pid =(long)SystemCallData->Argument[0];
+			suspend_by_PID(pid);
+			break;
+		case SYSNUM_RESUME_PROCESS:
+			pid =(long)SystemCallData->Argument[0];
+			resume_by_ID(pid);
+			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
 			if((long)SystemCallData->Argument[0] == -2L)
@@ -631,9 +687,11 @@ void    osInit( int argc, char *argv[]  ) {
 	totalQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	timerQueue = (QUEUE *)malloc(sizeof(QUEUE));
+	suspendQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	totalQueue->next = NULL;
 	readyQueue->next = NULL;
 	timerQueue->next = NULL;
+	suspendQueue->next = NULL;
 
     /* Demonstrates how calling arguments are passed thru to here       */
 
