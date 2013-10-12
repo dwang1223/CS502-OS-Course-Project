@@ -452,7 +452,7 @@ int suspend_by_PID(long pid)
 			return SUCCESS;
 		}
 	}
-
+	return PID_NOT_FOUND;
 }
 int resume_by_PID(long pid)
 {
@@ -484,6 +484,71 @@ int resume_by_PID(long pid)
 	}
 	return PCB_NOT_SUSPENDED;
 }
+int priority_changer(long pid, int priority)
+{
+	Queue queueCursor;
+	// check whether the pid is legal or not
+	if(priority > MAX_LEGAL_PRIOR)
+	{
+		return ILLEGAL_PRIOR;
+	}
+
+	// check whether the node needs change is current running Node
+	if(pid == currentPCBNode->pid)
+	{
+		currentPCBNode->prior = priority;
+		return SUCCESS;
+	}
+	// modify totalQueue
+	queueCursor = totalQueue;
+	while(queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		if(queueCursor->node->pid == pid)
+		{
+			queueCursor->node->prior = priority;
+			break;
+		}
+	}
+	// check readyQueue
+	queueCursor = readyQueue;
+	while(queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		if(queueCursor->node->pid == pid)
+		{
+			queueCursor->node->prior = priority;
+			return SUCCESS;
+		}
+	}
+	// check timerQueue
+	queueCursor = timerQueue;
+	while(queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		if(queueCursor->node->pid == pid)
+		{
+			queueCursor->node->prior = priority;
+			return SUCCESS;
+		}
+	}
+	// check suspendQueue
+	queueCursor = suspendQueue;
+	while(queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		if(queueCursor->node->pid == pid)
+		{
+			queueCursor->node->prior = priority;
+			return SUCCESS;
+		}
+	}
+
+	
+
+	return PID_NOT_FOUND;
+}
+
 /************************************************************************
     INTERRUPT_HANDLER
         When the Z502 gets a hardware interrupt, it transfers control to
@@ -619,6 +684,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	PCB					*pcb;
 	static long			pid;
 	int					returnStatus;
+	int					priority;
 	//extern long			Z502_REG1;
 
     call_type = (short)SystemCallData->SystemCallNumber;
@@ -711,6 +777,19 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			}
 			break;
 
+		case SYSNUM_CHANGE_PRIORITY:
+			pid = (long)SystemCallData->Argument[0];
+			priority = (int)SystemCallData->Argument[1];
+			returnStatus = priority_changer(pid, priority);
+			if(returnStatus == SUCCESS)
+			{
+				*(long *)SystemCallData->Argument[2] = ERR_SUCCESS;
+			}
+			else
+			{
+				*(long *)SystemCallData->Argument[2] = ERR_BAD_PARAM;
+			}
+			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
 			if((long)SystemCallData->Argument[0] == -2L)
@@ -781,7 +860,7 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1f, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1g, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;

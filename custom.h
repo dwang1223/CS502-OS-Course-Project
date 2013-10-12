@@ -23,10 +23,15 @@ typedef struct queue
 #define         ADD_BY_END							1
 #define         ADD_BY_PRIOR						2
 #define         MAX_LEGAL_PID						99L
+#define         MAX_LEGAL_PRIOR						99
 
 #define         ILLEGAL_PID							-1
 #define         ALREADY_SUSPENDED					-2
 #define         PCB_NOT_SUSPENDED					-3
+#define         SLEF_SUSPENDED_ERR					-4
+#define         PID_NOT_FOUND					-5
+
+#define         ILLEGAL_PRIOR						-1
 
 #define                  NUM_RAND_BUCKETS          128
 #define                  DO_LOCK                     1
