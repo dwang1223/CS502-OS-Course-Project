@@ -558,7 +558,15 @@ int priority_changer(long pid, int priority)
 
 	return PID_NOT_FOUND;
 }
-
+int msg_sender(long pid, char *msg, int msgLength)
+{
+	// check whether the pid is legal or not
+	if(pid > MAX_LEGAL_PID)
+	{
+		return ILLEGAL_PID;
+	}
+	return SUCCESS;
+}
 /************************************************************************
     INTERRUPT_HANDLER
         When the Z502 gets a hardware interrupt, it transfers control to
@@ -806,7 +814,24 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 		case SYSNUM_SEND_MESSAGE:
 			pid = (long)SystemCallData->Argument[0];
 			msgLength = (int)SystemCallData->Argument[2];
-			strncpy(message, (char*)SystemCallData->Argument[1],msgLength);
+			// check msgLength
+			if(msgLength > MAX_MSG_LENGTH)
+			{
+				*(long *)SystemCallData->Argument[3] = ERR_BAD_PARAM;
+			}
+			else
+			{
+				strncpy(message, (char*)SystemCallData->Argument[1],msgLength);
+				returnStatus = msg_sender(pid, message, msgLength);
+				if(returnStatus == SUCCESS)
+				{
+					*(long *)SystemCallData->Argument[3] = ERR_SUCCESS;
+				}
+				else
+				{
+					*(long *)SystemCallData->Argument[3] = ERR_BAD_PARAM;
+				}
+			}
 			break;
 
 		case SYSNUM_RECEIVE_MESSAGE:
