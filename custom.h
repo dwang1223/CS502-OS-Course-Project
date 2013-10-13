@@ -1,3 +1,32 @@
+#define			MAX_COUNT_OF_PROCESSES			25
+#define			ROOT_PID						0L
+#define			ROOT_PRIOR						20
+#define			ROOT_PNAME						"I am ROOT"
+#define         SUCCESS							1
+#define         FAIL							0
+#define         NO_PCB_NODE_FOUND              -10L
+#define         ADD_BY_END							1
+#define         ADD_BY_PRIOR						2
+#define         MAX_LEGAL_PID						99L
+#define         MAX_LEGAL_PRIOR						99
+#define         MAX_MSG_LENGTH						100
+#define         MAX_MSG_COUNT						100
+
+#define         ILLEGAL_PID							-1
+#define         ALREADY_SUSPENDED					-2
+#define         PCB_NOT_SUSPENDED					-3
+#define         SLEF_SUSPENDED_ERR					-4
+#define         PID_NOT_FOUND						-5
+#define         TOO_SMALL_BUF_SIZE					-6
+
+#define         ILLEGAL_PRIOR						-1
+
+#define                  NUM_RAND_BUCKETS          128
+#define                  DO_LOCK                     1
+#define                  DO_UNLOCK                   0
+#define                  SUSPEND_UNTIL_LOCKED        TRUE
+#define                  DO_NOT_SUSPEND              FALSE
+
 typedef struct
 {
 	long pid;
@@ -13,30 +42,16 @@ typedef struct queue
 	struct queue *next;
 } *Queue, QUEUE;
 
-#define			MAX_COUNT_OF_PROCESSES			25
-#define			ROOT_PID						0L
-#define			ROOT_PRIOR						20
-#define			ROOT_PNAME						"I am ROOT"
-#define         SUCCESS							1
-#define         FAIL							0
-#define         NO_PCB_NODE_FOUND              -10L
-#define         ADD_BY_END							1
-#define         ADD_BY_PRIOR						2
-#define         MAX_LEGAL_PID						99L
-#define         MAX_LEGAL_PRIOR						99
-#define         MAX_MSG_LENGTH						100
+typedef struct
+{
+	long sid;
+	long tid;
+	INT32 length;
+	char msg[MAX_MSG_LENGTH];
+} MSG;
 
-
-#define         ILLEGAL_PID							-1
-#define         ALREADY_SUSPENDED					-2
-#define         PCB_NOT_SUSPENDED					-3
-#define         SLEF_SUSPENDED_ERR					-4
-#define         PID_NOT_FOUND					-5
-
-#define         ILLEGAL_PRIOR						-1
-
-#define                  NUM_RAND_BUCKETS          128
-#define                  DO_LOCK                     1
-#define                  DO_UNLOCK                   0
-#define                  SUSPEND_UNTIL_LOCKED        TRUE
-#define                  DO_NOT_SUSPEND              FALSE
+typedef struct message
+{
+	MSG *node;
+	struct message *next;
+} *MsgQueue, MESSAGE;

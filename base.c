@@ -604,8 +604,31 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 	{
 		sid = currentPCBNode->pid;
 	}
+	msgCursor = msgQueue;
+	while(msgCursor != NULL && msgCursor->next != NULL)
+	{
+		preMsgQueue = msgCursor;
+		msgCursor = msgCursor->next;
+		if(msgCursor->node->sid = sid)
+		{
+			if(msgCursor->node->length > msgLength)
+			{
+				return TOO_SMALL_BUF_SIZE;
+			}
+			else
+			{
+				strncpy(msg, msgCursor->node->msg, msgCursor->node->length);
+				actualLength = msgCursor->node->length;
+				actualSid = msgCursor->node->sid;
 
-	return SUCCESS;
+				//remove the node from msgQueue
+				preMsgQueue->next = msgCursor->next;
+
+				return SUCCESS;
+			}
+		}
+	}
+	//return SUCCESS;
 }
 
 /************************************************************************
@@ -748,6 +771,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	int					msgLength;
 	long				actual_send_length;
 	long				actual_source_pid;
+	static int			msgCount = 0;
 	//extern long			Z502_REG1;
 
     call_type = (short)SystemCallData->SystemCallNumber;
@@ -856,6 +880,12 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
 
 		case SYSNUM_SEND_MESSAGE:
+			msgCount++;
+			if(msgCount > MAX_MSG_COUNT)
+			{
+				*(long *)SystemCallData->Argument[3] = ERR_BAD_PARAM;
+				break;
+			}
 			pid = (long)SystemCallData->Argument[0];
 			msgLength = (int)SystemCallData->Argument[2];
 			// check msgLength
