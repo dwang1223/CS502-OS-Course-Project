@@ -53,6 +53,7 @@ Queue totalQueue;
 Queue timerQueue;
 Queue readyQueue;
 Queue suspendQueue;
+MsgQueue msgQueue;
 static long increamentPID = 1; //store the maximum pid for all process
 PCB *pcb;
 static int currentCountOfProcess = 0;
@@ -558,23 +559,52 @@ int priority_changer(long pid, int priority)
 
 	return PID_NOT_FOUND;
 }
-int msg_sender(long pid, char *msg, int msgLength)
+int msg_sender(long sid, long tid, char *msg, int msgLength)
 {
+	MSG *msgNode;
+	MsgQueue msgCursor, msgQueueNode;
 	// check whether the pid is legal or not
-	if(pid > MAX_LEGAL_PID)
+	if(tid > MAX_LEGAL_PID)
 	{
 		return ILLEGAL_PID;
 	}
+	if(tid == -1L)
+	{
+		tid = sid;
+	}
+
+	msgCursor = msgQueue;
+	while(msgCursor != NULL && msgCursor->next != NULL)
+	{
+		msgCursor = msgCursor->next;
+	}
+	msgNode = (MSG*)malloc(sizeof(MSG));
+	msgNode->sid = sid;
+	msgNode->tid = tid;
+	msgNode->length = msgLength;
+	strncpy(msgNode->msg,msg,msgLength);
+
+	msgQueueNode = (MESSAGE *)malloc(sizeof(MESSAGE));
+	msgQueueNode->node = msgNode;
+	msgQueueNode->next = NULL;
+
+	msgCursor->next = msgQueueNode;
 	return SUCCESS;
 }
 
-int msg_receiver(long pid, char *msg, int msgLength)
+int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *actualSid)
 {
+	MsgQueue msgCursor, preMsgQueue;
 	// check whether the pid is legal or not
-	if(pid > MAX_LEGAL_PID)
+	if(sid > MAX_LEGAL_PID)
 	{
 		return ILLEGAL_PID;
 	}
+	if(sid == -1)
+	{
+		sid = currentPCBNode->pid;
+	}
+
 	return SUCCESS;
 }
 
@@ -716,6 +746,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	int					priority;
 	char				message[MAX_MSG_LENGTH];
 	int					msgLength;
+	long				actual_send_length;
+	long				actual_source_pid;
 	//extern long			Z502_REG1;
 
     call_type = (short)SystemCallData->SystemCallNumber;
@@ -834,7 +866,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			else
 			{
 				strncpy(message, (char*)SystemCallData->Argument[1],msgLength);
-				returnStatus = msg_sender(pid, message, msgLength);
+				returnStatus = msg_sender(currentPCBNode->pid,pid, message, msgLength);
 				if(returnStatus == SUCCESS)
 				{
 					*(long *)SystemCallData->Argument[3] = ERR_SUCCESS;
@@ -847,7 +879,26 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
 
 		case SYSNUM_RECEIVE_MESSAGE:
-
+			pid = (long)SystemCallData->Argument[0];
+			msgLength = (int)SystemCallData->Argument[2];
+			// check msgLength
+			if(msgLength > MAX_MSG_LENGTH)
+			{
+				*(long *)SystemCallData->Argument[5] = ERR_BAD_PARAM;
+			}
+			else
+			{
+				//strncpy(message, (char*)SystemCallData->Argument[1],msgLength);
+				returnStatus = msg_receiver(pid, (char*)SystemCallData->Argument[1], msgLength,SystemCallData->Argument[3], SystemCallData->Argument[4]);
+				if(returnStatus == SUCCESS)
+				{
+					*(long *)SystemCallData->Argument[5] = ERR_SUCCESS;
+				}
+				else
+				{
+					*(long *)SystemCallData->Argument[5] = ERR_BAD_PARAM;
+				}
+			}
 			break;
 
         // terminate system call
@@ -901,10 +952,12 @@ void    osInit( int argc, char *argv[]  ) {
 	readyQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	timerQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	suspendQueue = (QUEUE *)malloc(sizeof(QUEUE));
+	msgQueue = (MESSAGE *)malloc(sizeof(MESSAGE));
 	totalQueue->next = NULL;
 	readyQueue->next = NULL;
 	timerQueue->next = NULL;
 	suspendQueue->next = NULL;
+	msgQueue->next = NULL;
 
     /* Demonstrates how calling arguments are passed thru to here       */
 
@@ -929,7 +982,7 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1b, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1i, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
