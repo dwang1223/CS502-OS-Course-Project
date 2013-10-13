@@ -18,6 +18,8 @@
 #define         SLEF_SUSPENDED_ERR					-4
 #define         PID_NOT_FOUND						-5
 #define         TOO_SMALL_BUF_SIZE					-6
+#define         NO_MSG_FOUND						-7
+
 
 #define         ILLEGAL_PRIOR						-1
 

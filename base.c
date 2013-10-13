@@ -79,7 +79,7 @@ void timer_queue_print()
 	Queue timerQueueCursor = timerQueue;
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
 	MEM_READ( Z502ClockStatus, &currentTime );
-	printf("\ntimerQueue(%d):\t",currentTime);
+	printf("timerQueue(%d):\t",currentTime);
 	//printf("\ntimerQueue:\t");
 	while(timerQueueCursor->next != NULL)
 	{
@@ -88,6 +88,17 @@ void timer_queue_print()
 	}
 	printf("\n");
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
+}
+void suspend_queue_print()
+{
+	Queue suspendQueueCursor = suspendQueue;
+	printf("\nsuspendQueue:\t");
+	while(suspendQueueCursor->next != NULL)
+	{
+		suspendQueueCursor = suspendQueueCursor->next;
+		printf("%ld  ",suspendQueueCursor->node->pid);
+	}
+	printf("\n");
 }
 void total_queue_print()
 {
@@ -104,14 +115,15 @@ void current_statue_print()
 {
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	ready_queue_print();
+	suspend_queue_print();
 	timer_queue_print();
 	if(currentPCBNode != NULL)
 	{
-		printf("\nRunning node = %ld\n\n",currentPCBNode->pid);
+		printf("Running node = %ld\n\n",currentPCBNode->pid);
 	}
 	else
 	{
-		printf("\nRunning node is NULL\n\n");
+		printf("Running node is NULL\n\n");
 	}
 	
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
@@ -163,7 +175,6 @@ int start_timer(long *sleep_time)
 	dispatcher();
 	return 0;
 }
-
 int dispatcher()
 {
 	while(readyQueue->next == NULL)
@@ -466,6 +477,29 @@ int resume_by_PID(long pid)
 	{
 		return ILLEGAL_PID;
 	}
+
+	// resume ALL
+	if(pid == -1)
+	{
+		suspendQueueCursor = suspendQueue;
+		while(suspendQueueCursor != NULL && suspendQueueCursor->next != NULL)
+		{
+			preQueueCursor = suspendQueueCursor;
+			suspendQueueCursor = suspendQueueCursor->next;
+
+			// generate a new, which will be added to readyQueue
+			queueNode = (QUEUE *)malloc(sizeof(QUEUE));
+			queueNode->node = suspendQueueCursor->node;
+			queueNode->next = NULL;
+			// add the node to readyQueue
+			new_node_add_to_readyQueue(queueNode, globalAddType);
+			
+			// now, we will remove the node from suspendQueue
+			preQueueCursor->next = suspendQueueCursor->next;
+
+		}
+	}
+
 	// then check this pid is not in suspendQueue, and get the end point of suspendQueue: suspendQueueCursor
 	suspendQueueCursor = suspendQueue;
 	while(suspendQueueCursor != NULL && suspendQueueCursor->next != NULL)
@@ -563,16 +597,20 @@ int msg_sender(long sid, long tid, char *msg, int msgLength)
 {
 	MSG *msgNode;
 	MsgQueue msgCursor, msgQueueNode;
+	resume_by_PID(sid);
 	// check whether the pid is legal or not
 	if(tid > MAX_LEGAL_PID)
 	{
 		return ILLEGAL_PID;
 	}
+	/*
+	// target id = -1 means a broadcast, not means the target to itself
+	// so, in msg queue, it is legal that the target id = -1
 	if(tid == -1L)
 	{
 		tid = sid;
 	}
-
+	*/
 	msgCursor = msgQueue;
 	while(msgCursor != NULL && msgCursor->next != NULL)
 	{
@@ -589,27 +627,34 @@ int msg_sender(long sid, long tid, char *msg, int msgLength)
 	msgQueueNode->next = NULL;
 
 	msgCursor->next = msgQueueNode;
+	// resume target pid node, if it is suspended
+	resume_by_PID(tid);
+
 	return SUCCESS;
 }
 
 int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *actualSid)
 {
 	MsgQueue msgCursor, preMsgQueue;
+	Queue queueCursor, queueNode;
 	// check whether the pid is legal or not
 	if(sid > MAX_LEGAL_PID)
 	{
 		return ILLEGAL_PID;
 	}
+	/*
 	if(sid == -1)
 	{
-		sid = currentPCBNode->pid;
+		//sid = currentPCBNode->pid;
 	}
+	*/
 	msgCursor = msgQueue;
 	while(msgCursor != NULL && msgCursor->next != NULL)
 	{
 		preMsgQueue = msgCursor;
 		msgCursor = msgCursor->next;
-		if(msgCursor->node->sid = sid)
+		// match the specified source pid and target pid
+		if((sid == -1 || msgCursor->node->sid == sid) && msgCursor->node->tid == currentPCBNode->pid)
 		{
 			if(msgCursor->node->length > msgLength)
 			{
@@ -618,8 +663,8 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 			else
 			{
 				strncpy(msg, msgCursor->node->msg, msgCursor->node->length);
-				actualLength = msgCursor->node->length;
-				actualSid = msgCursor->node->sid;
+				*actualLength = (long)msgCursor->node->length;
+				*actualSid = msgCursor->node->sid;
 
 				//remove the node from msgQueue
 				preMsgQueue->next = msgCursor->next;
@@ -628,8 +673,29 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 			}
 		}
 	}
-	//return SUCCESS;
+	// no message found for current ruunning node
+	// then add current node into suspendQueue
+	// at last, do switch context
+
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	queueCursor = suspendQueue;
+	while(queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+	}
+	// create a new node for suspendQueue, then do the insertion
+	queueNode = (QUEUE*)malloc(sizeof(QUEUE));
+	queueNode->node = currentPCBNode;
+	queueNode->next = NULL;
+	queueCursor->next = queueNode;
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	// assign new node for currentPCBNode
+	dispatcher();
+	//current_statue_print();
+	return NO_MSG_FOUND;
 }
+
+
 
 /************************************************************************
     INTERRUPT_HANDLER
@@ -909,6 +975,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
 
 		case SYSNUM_RECEIVE_MESSAGE:
+			current_statue_print();
 			pid = (long)SystemCallData->Argument[0];
 			msgLength = (int)SystemCallData->Argument[2];
 			// check msgLength
@@ -1012,7 +1079,7 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1i, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1j, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
