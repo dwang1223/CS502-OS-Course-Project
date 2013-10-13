@@ -497,7 +497,7 @@ int priority_changer(long pid, int priority)
 	}
 
 	// check whether the node needs change is current running Node
-	if(pid == currentPCBNode->pid)
+	if(pid == -1 || pid == currentPCBNode->pid)
 	{
 		currentPCBNode->prior = priority;
 		return SUCCESS;
@@ -870,7 +870,7 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1h, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1i, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
