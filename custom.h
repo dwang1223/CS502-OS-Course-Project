@@ -24,6 +24,8 @@ typedef struct queue
 #define         ADD_BY_PRIOR						2
 #define         MAX_LEGAL_PID						99L
 #define         MAX_LEGAL_PRIOR						99
+#define         MAX_MSG_LENGTH						100
+
 
 #define         ILLEGAL_PID							-1
 #define         ALREADY_SUSPENDED					-2

@@ -497,7 +497,7 @@ void test1g(void) {
 	ErrorExpected(Z502_REG9, "CHANGE_PRIORITY");
 
 	// Use legal priority on legal process
-	CHANGE_PRIORITY(Z502_REG1, LEGAL_PRIORITY_1G, &Z502_REG9);
+	CHANGE_PRIORITY(Z502_REG1, 11, &Z502_REG9);
 	SuccessExpected(Z502_REG9, "CHANGE_PRIORITY");
 	// Terminate all existing processes
 	TERMINATE_PROCESS(-2, &Z502_REG9);

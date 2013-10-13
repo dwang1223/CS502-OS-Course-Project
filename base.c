@@ -695,6 +695,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	static long			pid;
 	int					returnStatus;
 	int					priority;
+	char				message[MAX_MSG_LENGTH];
+	int					msgLength;
 	//extern long			Z502_REG1;
 
     call_type = (short)SystemCallData->SystemCallNumber;
@@ -800,6 +802,17 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 				*(long *)SystemCallData->Argument[2] = ERR_BAD_PARAM;
 			}
 			break;
+
+		case SYSNUM_SEND_MESSAGE:
+			pid = (long)SystemCallData->Argument[0];
+			msgLength = (int)SystemCallData->Argument[2];
+			strncpy(message, (char*)SystemCallData->Argument[1],msgLength);
+			break;
+
+		case SYSNUM_RECEIVE_MESSAGE:
+
+			break;
+
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
 			if((long)SystemCallData->Argument[0] == -2L)
