@@ -650,7 +650,7 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 		preMsgQueue = msgCursor;
 		msgCursor = msgCursor->next;
 		// match the specified source pid and target pid
-		if((sid == -1 || msgCursor->node->sid == sid) && (msgCursor->node->tid == -1 || msgCursor->node->tid == currentPCBNode->pid))
+		if((sid == -1 || msgCursor->node->sid == sid) && ((msgCursor->node->tid == -1 && msgCursor->node->sid != sid) || msgCursor->node->tid == currentPCBNode->pid))
 		{
 			if(msgCursor->node->length > msgLength)
 			{
@@ -803,6 +803,12 @@ void    fault_handler( void )
 
     printf( "Fault_handler: Found vector type %d with value %d\n",
                         device_id, status );
+
+	if(device_id == 4 && status == 0)
+	{
+		printf("Illegal hardware instruction\n");
+		Z502Halt();
+	}
     // Clear out this device - we're done with it
     MEM_WRITE(Z502InterruptClear, &Index );
 }                                       /* End of fault_handler */
@@ -994,6 +1000,13 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			}
 			break;
 
+		case SYSNUM_MEM_READ:
+			if(SystemCallData->Argument[0] != Z502ClockStatus)
+			{
+				printf("Illegal hardware instruction\n");
+				Z502Halt();
+			}
+			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
 			if((long)SystemCallData->Argument[0] == -2L)
@@ -1075,7 +1088,7 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1j, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1k, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
