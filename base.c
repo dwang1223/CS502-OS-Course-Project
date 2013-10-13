@@ -567,6 +567,17 @@ int msg_sender(long pid, char *msg, int msgLength)
 	}
 	return SUCCESS;
 }
+
+int msg_receiver(long pid, char *msg, int msgLength)
+{
+	// check whether the pid is legal or not
+	if(pid > MAX_LEGAL_PID)
+	{
+		return ILLEGAL_PID;
+	}
+	return SUCCESS;
+}
+
 /************************************************************************
     INTERRUPT_HANDLER
         When the Z502 gets a hardware interrupt, it transfers control to
@@ -749,6 +760,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 				*(long *)SystemCallData->Argument[4] = ERR_SUCCESS;
 			}
 
+
 			if(currentCountOfProcess > MAX_COUNT_OF_PROCESSES)
 			{
 				*(long *)SystemCallData->Argument[4] = ERR_BAD_PARAM;
@@ -851,7 +863,16 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			}
 			else
 			{
-				process_teminator_by_pid((long)SystemCallData->Argument[0]);
+				returnStatus = process_teminator_by_pid((long)SystemCallData->Argument[0]);
+			
+				if(returnStatus == SUCCESS)
+				{
+					*(long *)SystemCallData->Argument[1] = ERR_SUCCESS;
+				}
+				else
+				{
+					*(long *)SystemCallData->Argument[1] = ERR_BAD_PARAM;
+				}
 			}
             break;
         default:  
@@ -908,7 +929,7 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1i, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1b, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
