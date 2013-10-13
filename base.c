@@ -92,7 +92,7 @@ void timer_queue_print()
 void suspend_queue_print()
 {
 	Queue suspendQueueCursor = suspendQueue;
-	printf("\nsuspendQueue:\t");
+	printf("suspendQueue:\t");
 	while(suspendQueueCursor->next != NULL)
 	{
 		suspendQueueCursor = suspendQueueCursor->next;
@@ -637,24 +637,20 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 {
 	MsgQueue msgCursor, preMsgQueue;
 	Queue queueCursor, queueNode;
+	//current_statue_print();
 	// check whether the pid is legal or not
 	if(sid > MAX_LEGAL_PID)
 	{
 		return ILLEGAL_PID;
 	}
-	/*
-	if(sid == -1)
-	{
-		//sid = currentPCBNode->pid;
-	}
-	*/
+	memset(msg,'\0',msgLength);
 	msgCursor = msgQueue;
 	while(msgCursor != NULL && msgCursor->next != NULL)
 	{
 		preMsgQueue = msgCursor;
 		msgCursor = msgCursor->next;
 		// match the specified source pid and target pid
-		if((sid == -1 || msgCursor->node->sid == sid) && msgCursor->node->tid == currentPCBNode->pid)
+		if((sid == -1 || msgCursor->node->sid == sid) && (msgCursor->node->tid == -1 || msgCursor->node->tid == currentPCBNode->pid))
 		{
 			if(msgCursor->node->length > msgLength)
 			{
@@ -692,7 +688,7 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 	// assign new node for currentPCBNode
 	dispatcher();
 	//current_statue_print();
-	return NO_MSG_FOUND;
+	msg_receiver(sid, msg, msgLength, actualLength, actualSid);
 }
 
 
@@ -975,7 +971,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
 
 		case SYSNUM_RECEIVE_MESSAGE:
-			current_statue_print();
+			//current_statue_print();
 			pid = (long)SystemCallData->Argument[0];
 			msgLength = (int)SystemCallData->Argument[2];
 			// check msgLength
