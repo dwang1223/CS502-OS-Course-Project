@@ -133,7 +133,7 @@ int start_timer(long *sleep_time)
 	INT32 currentTime;
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
-	current_statue_print(); 
+	//current_statue_print(); 
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	MEM_READ( Z502ClockStatus, &currentTime );
@@ -636,7 +636,7 @@ int msg_sender(long sid, long tid, char *msg, int msgLength)
 int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *actualSid)
 {
 	MsgQueue msgCursor, preMsgQueue;
-	Queue queueCursor, queueNode;
+	Queue queueCursor, queueNode, tmpCurrentNode;
 	//current_statue_print();
 	// check whether the pid is legal or not
 	if(sid > MAX_LEGAL_PID)
@@ -669,25 +669,44 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 			}
 		}
 	}
-	// no message found for current ruunning node
-	// then add current node into suspendQueue
-	// at last, do switch context
 
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
-	queueCursor = suspendQueue;
-	while(queueCursor != NULL && queueCursor->next != NULL)
+	// check whether timerQueue is NULL or not
+	// if not NULL, current PCB go to IDLE until interrupt
+	//queueCursor = timerQueue;
+	if(timerQueue->next != NULL)
 	{
-		queueCursor = queueCursor->next;
+		while(timerQueue->next != NULL)
+		{
+			CALL(Z502Idle());
+		}
+		tmpCurrentNode = (QUEUE*)malloc(sizeof(QUEUE));
+		tmpCurrentNode->node = currentPCBNode;
+		tmpCurrentNode->next = NULL;
+		new_node_add_to_readyQueue(tmpCurrentNode, ADD_BY_END);
+		dispatcher();
 	}
-	// create a new node for suspendQueue, then do the insertion
-	queueNode = (QUEUE*)malloc(sizeof(QUEUE));
-	queueNode->node = currentPCBNode;
-	queueNode->next = NULL;
-	queueCursor->next = queueNode;
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
-	// assign new node for currentPCBNode
-	dispatcher();
-	//current_statue_print();
+	else
+	{
+		// no message found for current ruunning node
+		// then add current node into suspendQueue
+		// at last, do switch context
+
+		READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+		queueCursor = suspendQueue;
+		while(queueCursor != NULL && queueCursor->next != NULL)
+		{
+			queueCursor = queueCursor->next;
+		}
+		// create a new node for suspendQueue, then do the insertion
+		queueNode = (QUEUE*)malloc(sizeof(QUEUE));
+		queueNode->node = currentPCBNode;
+		queueNode->next = NULL;
+		queueCursor->next = queueNode;
+		READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+		// assign new node for currentPCBNode
+		dispatcher();
+		//current_statue_print();
+	}
 	msg_receiver(sid, msg, msgLength, actualLength, actualSid);
 }
 
@@ -806,8 +825,8 @@ void    fault_handler( void )
 
 	if(device_id == 4 && status == 0)
 	{
-		printf("Illegal hardware instruction\n");
-		Z502Halt();
+		printf("@@@@@Illegal hardware instruction\n");
+		//Z502Halt();
 	}
     // Clear out this device - we're done with it
     MEM_WRITE(Z502InterruptClear, &Index );
@@ -1088,7 +1107,7 @@ void    osInit( int argc, char *argv[]  ) {
 
     /*  This should be done by a "os_make_process" routine, so that
         test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1k, USER_MODE );
+    Z502MakeContext( &next_context, (void *)test1c, USER_MODE );
 
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
