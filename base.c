@@ -33,22 +33,38 @@
 #define         ILLEGAL_PRIORITY                -3
 #define         NAME_DUPLICATED					-4
 
+void ready_queue_print();
+void timer_queue_print();
+void suspend_queue_print();
+void total_queue_print();
+void current_statue_print();
+int start_timer(long *);
 int dispatcher();
-
+long get_pid_by_name(char *);
+PCB * PCB_item_generator(SYSTEM_CALL_DATA *);
+void new_node_add_to_readyQueue(Queue , int );
+long process_creater(PCB *);
+void myself_teminator( );
+int process_teminator_by_pid(long );
+int suspend_by_PID(long );
+int resume_by_PID(long );
+int priority_changer(long , int );
+int msg_sender(long , long , char *, int );
+int msg_receiver(long , char *, int , long *, long *);
+void interrupt_handler( void );
+void fault_handler( void );
+void svc( SYSTEM_CALL_DATA * );
+void osInit( int , char **  );
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
 extern INT16         Z502_PAGE_TBL_LENGTH;
-
 extern void          *TO_VECTOR [];
-
 char                 *call_names[] = { "mem_read ", "mem_write",
                             "read_mod ", "get_time ", "sleep    ",
                             "get_pid  ", "create   ", "term_proc",
                             "suspend  ", "resume   ", "ch_prior ",
                             "send     ", "receive  ", "disk_read",
                             "disk_wrt ", "def_sh_ar" };
-
-// test whether my struct declare is available
 Queue totalQueue;
 Queue timerQueue;
 Queue readyQueue;
@@ -710,8 +726,6 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 	msg_receiver(sid, msg, msgLength, actualLength, actualSid);
 }
 
-
-
 /************************************************************************
     INTERRUPT_HANDLER
         When the Z502 gets a hardware interrupt, it transfers control to
@@ -1057,8 +1071,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
     }
 }                                               // End of svc
 
-
-
 /************************************************************************
     osInit
         This is the first routine called after the simulation begins.  This
@@ -1069,6 +1081,9 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 void    osInit( int argc, char *argv[]  ) {
     void                *next_context;
     INT32               i;
+
+	static char test[21];
+	// Init the global queues
 	PCB *rootPCB;
 	Queue totalNodeTmp;
 	totalNodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
@@ -1098,17 +1113,83 @@ void    osInit( int argc, char *argv[]  ) {
     TO_VECTOR[TO_VECTOR_FAULT_HANDLER_ADDR] = (void *)fault_handler;
     TO_VECTOR[TO_VECTOR_TRAP_HANDLER_ADDR]  = (void *)svc;
 
+	if( argc > 1 )
+	{
+		strncpy(test,argv[1],6);
+	}
+	else
+	{
+		fgets (test, 20, stdin);
+	}
+
     /*  Determine if the switch was set, and if so go to demo routine.  */
 
-    if (( argc > 1 ) && ( strcmp( argv[1], "sample" ) == 0 ) ) {
+    if (strncmp( test, "sample", 6 ) == 0 ) 
+	{
         Z502MakeContext( &next_context, (void *)sample_code, KERNEL_MODE );
         Z502SwitchContext( SWITCH_CONTEXT_KILL_MODE, &next_context );
     }                   /* This routine should never return!!           */
-
-    /*  This should be done by a "os_make_process" routine, so that
-        test0 runs on a process recognized by the operating system.    */
-    Z502MakeContext( &next_context, (void *)test1j, USER_MODE );
-
+	else if (strncmp( test, "test0", 5 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test0, USER_MODE );
+	}
+	else if (strncmp( test, "test1a", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1a, USER_MODE );
+	}
+	else if (strncmp( test, "test1b", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1b, USER_MODE );
+	}
+	else if (strncmp( test, "test1c", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1c, USER_MODE );
+	}
+	else if (strncmp( test, "test1d", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1d, USER_MODE );
+	}
+	else if (strncmp( test, "test1e", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1e, USER_MODE );
+	}
+	else if (strncmp( test, "test1f", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1f, USER_MODE );
+	}
+	else if (strncmp( test, "test1g", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1g, USER_MODE );
+	}
+	else if (strncmp( test, "test1h", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1h, USER_MODE );
+	}
+	else if (strncmp( test, "test1i", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1i, USER_MODE );
+	}
+	else if (strncmp( test, "test1j", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1j, USER_MODE );
+	}
+	else if (strncmp( test, "test1k", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1k, USER_MODE );
+	}
+	else if (strncmp( test, "test1l", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1l, USER_MODE );
+	}
+	else if (strncmp( test, "test1m", 6 ) == 0 ) 
+	{
+		Z502MakeContext( &next_context, (void *)test1m, USER_MODE );
+	}
+	else
+	{
+		printf("Illegal Input\n");
+		exit(0);
+	}
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
