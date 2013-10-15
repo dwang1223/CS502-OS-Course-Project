@@ -36,6 +36,7 @@
 #define         ILLEGAL_PRIORITY                -3
 #define         NAME_DUPLICATED					-4
 
+void schedule_printer();
 void ready_queue_print();
 void timer_queue_print();
 void suspend_queue_print();
@@ -58,6 +59,7 @@ void interrupt_handler( void );
 void fault_handler( void );
 void svc( SYSTEM_CALL_DATA * );
 void osInit( int , char **  );
+
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
 extern INT16         Z502_PAGE_TBL_LENGTH;
@@ -79,7 +81,74 @@ static int currentCountOfProcess = 0;
 static PCB *currentPCBNode;
 INT32 LockResult,LockResult2,LockResultPrinter;
 int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
+char action[SP_LENGTH_OF_ACTION];
+INT32 currentTime = 0;
 
+void schedule_printer()
+{
+	Queue queueCursor;
+	int count = 0;
+	
+	READ_MODIFY(MEMORY_INTERLOCK_BASE+3, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
+	printf("\n");
+	SP_print_header();
+	CALL(MEM_READ( Z502ClockStatus, &currentTime ));
+	SP_setup( SP_TIME_MODE, (long)currentTime );
+	if(readyQueue != NULL && readyQueue->next != NULL)
+	{
+		SP_setup( SP_TARGET_MODE, readyQueue->next->node->pid );
+	}
+	else
+	{
+		SP_setup( SP_TARGET_MODE, currentPCBNode->pid );
+	}
+	//strncpy(action,"Schedule",8);
+	SP_setup_action( SP_ACTION_MODE, action );
+	SP_setup( SP_RUNNING_MODE, currentPCBNode->pid );
+
+	queueCursor = readyQueue;
+	while(queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		count++;
+		SP_setup( SP_READY_MODE, queueCursor->node->pid );
+		if(count >= 10)
+		{
+			count = 0;
+			break;
+		}
+	}
+
+	queueCursor = timerQueue;
+	while(queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		count++;
+		SP_setup( SP_WAITING_MODE, queueCursor->node->pid );
+		if(count >= 10)
+		{
+			count = 0;
+			break;
+		}
+	}
+
+	queueCursor = suspendQueue;
+	while(queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		count++;
+		SP_setup( SP_SUSPENDED_MODE, queueCursor->node->pid );
+		if(count >= 10)
+		{
+			count = 0;
+			break;
+		}
+	}
+	CALL(SP_print_line());
+	memset(action,'\0',8);
+	printf("\n");
+	READ_MODIFY(MEMORY_INTERLOCK_BASE+3, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
+}
 void ready_queue_print()
 {
 	Queue readyQueueCursor = readyQueue;
@@ -93,11 +162,10 @@ void ready_queue_print()
 }
 void timer_queue_print()
 {
-	INT32 currentTime = 0;
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	Queue timerQueueCursor = timerQueue;
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
-	MEM_READ( Z502ClockStatus, &currentTime );
+	CALL(MEM_READ( Z502ClockStatus, &currentTime ));
 	printf("timerQueue(%d):\t",currentTime);
 	//printf("\ntimerQueue:\t");
 	while(timerQueueCursor->next != NULL)
@@ -149,13 +217,13 @@ void current_statue_print()
 }
 int start_timer(long *sleep_time)
 {
-	INT32 currentTime;
+	//INT32 currentTime;
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
 	//current_statue_print(); 
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
-	MEM_READ( Z502ClockStatus, &currentTime );
+	CALL(MEM_READ( Z502ClockStatus, &currentTime ));
 	_wakeUpTime = currentTime + (INT32)*sleep_time;
 	currentPCBNode->wakeUpTime = _wakeUpTime;
 	
@@ -189,7 +257,7 @@ int start_timer(long *sleep_time)
 		}
 	}
 	
-	MEM_WRITE(Z502TimerStart, sleep_time);
+	CALL(MEM_WRITE(Z502TimerStart, sleep_time));
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	dispatcher();
 	return 0;
@@ -211,6 +279,9 @@ int dispatcher()
 	//free the mode in readyQueue???
 	//pop up the first node from readyQueue
 	readyQueue->next = readyQueue->next->next;
+
+	strncpy(action,"Dispatch",8);
+	schedule_printer();
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	Z502SwitchContext( SWITCH_CONTEXT_SAVE_MODE, &(currentPCBNode->context) );
 }
@@ -738,10 +809,11 @@ void    interrupt_handler( void ) {
     INT32              device_id;
     INT32              status;
     INT32              Index = 0;
+	INT32				sleepTime;
     //static BOOL        remove_this_in_your_code = TRUE;   /** TEMP **/
-    static INT32       how_many_interrupt_entries = 0;    /** TEMP **/
+    //static INT32       how_many_interrupt_entries = 0;    /** TEMP **/
 	Queue readyQueueCursor, timerQueueCursor, preTmpCursor, queueNode;
-	INT32 currentTime;
+	//INT32 currentTime;
 	
 
     // Get cause of interrupt
@@ -808,13 +880,14 @@ void    interrupt_handler( void ) {
 	}
 
 	//reset sleep time
+	
 	if(timerQueue->next != NULL)
 	{
-		MEM_READ( Z502ClockStatus, &currentTime );
-		currentTime = timerQueue->next->node->wakeUpTime-currentTime;
-		MEM_WRITE(Z502TimerStart, &currentTime);
+		CALL(MEM_READ( Z502ClockStatus, &currentTime ));
+		sleepTime = timerQueue->next->node->wakeUpTime-currentTime;
+		CALL(MEM_WRITE(Z502TimerStart, &sleepTime));
 	}
-
+	
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 
 	MEM_WRITE(Z502InterruptClear, &Index );
@@ -865,7 +938,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
     short               call_type;
     static short        do_print = 10;
     short               i;
-	INT32				Time;
+	//INT32				Time;
 	INT32				Temp;
 	PCB					*pcb;
 	static long			pid;
@@ -896,13 +969,15 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	    
 	    // Get time service call
 	    case SYSNUM_GET_TIME_OF_DAY:
-		    MEM_READ( Z502ClockStatus, &Time );
-            *(INT32 *)SystemCallData->Argument[0] = Time;
+		    CALL(MEM_READ( Z502ClockStatus, &currentTime ));
+            *(INT32 *)SystemCallData->Argument[0] = currentTime;
             break;
 		
 		//SLEEP CALL
 		case SYSNUM_SLEEP:
 			start_timer(&(INT32*)SystemCallData->Argument[0]);
+			//strncpy(action,"Sleep",8);
+			//schedule_printer();
 			break;
 		
 		//Create Process
@@ -925,8 +1000,10 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				*(long *)SystemCallData->Argument[4] = ERR_BAD_PARAM;
 			}
-			
+			strncpy(action,"Create",8);
+			schedule_printer();
 			break;
+
 		case SYSNUM_GET_PROCESS_ID:
 			//Get process ID in this section
 			pid = get_pid_by_name((char*)SystemCallData->Argument[0]);
@@ -939,7 +1016,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				*(long *)SystemCallData->Argument[2] = ERR_SUCCESS;
 			}
-				
 			break;
 
 		// suspend system call
@@ -954,6 +1030,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				*(long *)SystemCallData->Argument[1] = ERR_BAD_PARAM;
 			}
+			strncpy(action,"Suspend",8);
+			schedule_printer();
 			break;
 
 		case SYSNUM_RESUME_PROCESS:
@@ -967,6 +1045,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				*(long *)SystemCallData->Argument[1] = ERR_BAD_PARAM;
 			}
+			strncpy(action,"Resume",8);
+			schedule_printer();
 			break;
 
 		case SYSNUM_CHANGE_PRIORITY:
@@ -981,6 +1061,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				*(long *)SystemCallData->Argument[2] = ERR_BAD_PARAM;
 			}
+			strncpy(action,"Chg_Pior",8);
+			schedule_printer();
 			break;
 
 		case SYSNUM_SEND_MESSAGE:
@@ -1010,6 +1092,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 					*(long *)SystemCallData->Argument[3] = ERR_BAD_PARAM;
 				}
 			}
+			strncpy(action,"MsgSend",8);
+			schedule_printer();
 			break;
 
 		case SYSNUM_RECEIVE_MESSAGE:
@@ -1034,6 +1118,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 					*(long *)SystemCallData->Argument[5] = ERR_BAD_PARAM;
 				}
 			}
+			//strncpy(action,"MsgRecv",8);
+			//schedule_printer();
 			break;
 		
 		// this is not used in phase 1
@@ -1068,6 +1154,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 					*(long *)SystemCallData->Argument[1] = ERR_BAD_PARAM;
 				}
 			}
+			strncpy(action,"Teminate",8);
+			schedule_printer();
             break;
         default:  
             printf( "ERROR!  call_type not recognized!\n" ); 
@@ -1196,6 +1284,7 @@ void    osInit( int argc, char *argv[]  ) {
 		printf("Illegal Input\n");
 		exit(0);
 	}
+	
 	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
@@ -1205,7 +1294,6 @@ void    osInit( int argc, char *argv[]  ) {
 	totalNodeTmp->next = NULL;
 	totalQueue->next = totalNodeTmp;
 	currentPCBNode = rootPCB;
-
 
     Z502SwitchContext( SWITCH_CONTEXT_KILL_MODE, &next_context );
 	

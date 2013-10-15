@@ -7,7 +7,7 @@
 #define         NO_PCB_NODE_FOUND              -10L
 #define         ADD_BY_END							1
 #define         ADD_BY_PRIOR						2
-#define         MAX_LEGAL_PID						99L
+#define         MAX_LEGAL_PID						10L
 #define         MAX_LEGAL_PRIOR						99
 #define         MAX_MSG_LENGTH						100
 #define         MAX_MSG_COUNT						31
