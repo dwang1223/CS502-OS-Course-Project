@@ -19,7 +19,9 @@
         3.0 August   2004: Modified to support memory mapped IO
         3.1 August   2004: hardware interrupt runs on separate thread
         3.11 August  2004: Support for OS level locking
-	4.0  July    2013: Major portions rewritten to support multiple threads
+		4.0  July    2013: Major portions rewritten to support multiple threads
+
+		Oct. 2013 Implemeted by Hao        hzhou@wpi.edu
 ************************************************************************/
 
 #include			 "malloc.h"
@@ -840,7 +842,7 @@ void    fault_handler( void )
 	if(device_id == 4 && status == 0)
 	{
 		printf("@@@@@Illegal hardware instruction\n");
-		//Z502Halt();
+		Z502Halt();
 	}
     // Clear out this device - we're done with it
     MEM_WRITE(Z502InterruptClear, &Index );
