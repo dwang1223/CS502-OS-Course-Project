@@ -358,6 +358,7 @@ void new_node_add_to_readyQueue(Queue readyNode, int addType)
 		}
 		else
 		{
+			// if the readQueue is not NULL, just find the proper place to insert the new node
 			readyQueueCursor = readyQueue;
 			while(readyQueueCursor->next != NULL)
 			{
@@ -547,7 +548,7 @@ int process_teminator_by_pid(long pID)
 	return FAIL;
 }
 
-// 
+// suspend self is illegal
 int suspend_by_PID(long pid)
 {
 	Queue suspendQueueCursor, queueCursor, preQueueCursor;
@@ -641,28 +642,31 @@ int resume_by_PID(long pid)
 
 		}
 	}
-
-	// then check this pid is not in suspendQueue, and get the end point of suspendQueue: suspendQueueCursor
-	suspendQueueCursor = suspendQueue;
-	while(suspendQueueCursor != NULL && suspendQueueCursor->next != NULL)
+	else
 	{
-		preQueueCursor = suspendQueueCursor;
-		suspendQueueCursor = suspendQueueCursor->next;
-		if(suspendQueueCursor->node->pid == pid)
+		// resume specified node
+		// check whether this node is in suspendQueue or not, if found, just resume it, otherwise return error
+		suspendQueueCursor = suspendQueue;
+		while(suspendQueueCursor != NULL && suspendQueueCursor->next != NULL)
 		{
-			// generate a new, which will be added to readyQueue
-			queueNode = (QUEUE *)malloc(sizeof(QUEUE));
-			queueNode->node = suspendQueueCursor->node;
-			queueNode->next = NULL;
-			// add the node to readyQueue
-			new_node_add_to_readyQueue(queueNode, globalAddType);
+			preQueueCursor = suspendQueueCursor;
+			suspendQueueCursor = suspendQueueCursor->next;
+			if(suspendQueueCursor->node->pid == pid)
+			{
+				// generate a new, which will be added to readyQueue
+				queueNode = (QUEUE *)malloc(sizeof(QUEUE));
+				queueNode->node = suspendQueueCursor->node;
+				queueNode->next = NULL;
+				// add the node to readyQueue
+				new_node_add_to_readyQueue(queueNode, globalAddType);
 
-			// now, we will remove the node from suspendQueue
-			preQueueCursor->next = suspendQueueCursor->next;
-			return SUCCESS;
+				// now, we will remove the node from suspendQueue
+				preQueueCursor->next = suspendQueueCursor->next;
+				return SUCCESS;
+			}
 		}
+		return PCB_NOT_SUSPENDED;
 	}
-	return PCB_NOT_SUSPENDED;
 }
 int priority_changer(long pid, int priority)
 {
@@ -704,7 +708,7 @@ int priority_changer(long pid, int priority)
 			queueNode = queueCursor;
 			preQueueCursor->next = queueCursor->next; // remove the node from readyQueue
 			queueNode->next = NULL;
-			new_node_add_to_readyQueue(queueNode, globalAddType); // add the node into readyQueue
+			new_node_add_to_readyQueue(queueNode, globalAddType); // add the node into readyQueue based on addType
 			return SUCCESS;
 		}
 	}
@@ -739,7 +743,8 @@ int msg_sender(long sid, long tid, char *msg, int msgLength)
 {
 	MSG *msgNode;
 	MsgQueue msgCursor, msgQueueNode;
-	resume_by_PID(sid);
+	// first, resume the target node, if it is suspended
+	//resume_by_PID(sid);
 	// check whether the pid is legal or not
 	if(tid > MAX_LEGAL_PID)
 	{
@@ -753,6 +758,8 @@ int msg_sender(long sid, long tid, char *msg, int msgLength)
 		tid = sid;
 	}
 	*/
+
+	// add the msg node at the end of msgQueue
 	msgCursor = msgQueue;
 	while(msgCursor != NULL && msgCursor->next != NULL)
 	{
@@ -769,6 +776,7 @@ int msg_sender(long sid, long tid, char *msg, int msgLength)
 	msgQueueNode->next = NULL;
 
 	msgCursor->next = msgQueueNode;
+
 	// resume target pid node, if it is suspended
 	resume_by_PID(tid);
 
@@ -794,6 +802,7 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 		// match the specified source pid and target pid
 		if((sid == -1 || msgCursor->node->sid == sid) && ((msgCursor->node->tid == -1 && msgCursor->node->sid != sid) || msgCursor->node->tid == currentPCBNode->pid))
 		{
+			// check buffer size, whether it is large enought to buffer the message
 			if(msgCursor->node->length > msgLength)
 			{
 				return TOO_SMALL_BUF_SIZE;
@@ -849,6 +858,7 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 		dispatcher();
 		//current_statue_print();
 	}
+	// recursive, until it finds a message for it
 	msg_receiver(sid, msg, msgLength, actualLength, actualSid);
 }
 
@@ -931,7 +941,7 @@ void    interrupt_handler( void ) {
 		}
 	}
 
-	//reset sleep time
+	//reset sleep time to ensure there will be a interrupt to pop out the node in the timerQueue
 	
 	if(timerQueue->next != NULL)
 	{
