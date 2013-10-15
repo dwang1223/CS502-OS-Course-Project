@@ -1104,11 +1104,11 @@ void test1l(void) {
 
  **************************************************************************/
 void test1m(void) {
-    static boyWords[5][50] = {  "I love you!", 
+    static char boyWords[5][50] = {  "I love you!", 
                                 "See you!", "I give up!", 
                                 "Wish you happy!", 
                                 "..."};
-    static girlWords[7][50] = { "Are you kidding?", 
+    static char girlWords[7][50] = { "Are you kidding?", 
                                 "I don't love you at all!", 
                                 "We are just friends", 
                                 "I already have boyfriend!", 
