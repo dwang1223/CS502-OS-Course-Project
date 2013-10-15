@@ -1105,7 +1105,6 @@ void test1l(void) {
  your Operating System.
 
  **************************************************************************/
-<<<<<<< HEAD
 typedef struct {
     long    target_pid;
     long    source_pid;
@@ -1170,23 +1169,7 @@ void test1m(void)
 			break;
 		}
 	}
-=======
-void test1m(void) {
-    static char boyWords[5][50] = {  "I love you!", 
-                                "See you!", "I give up!", 
-                                "Wish you happy!", 
-                                "..."};
-    static char girlWords[7][50] = { "Are you kidding?", 
-                                "I don't love you at all!", 
-                                "We are just friends", 
-                                "I already have boyfriend!", 
-                                "Actually, I love girls",
-                                "You are a good man, you can find a better girl",
-                                "I love you, too"};
-     // Make process to test with
-    CREATE_PROCESS("girl", test1j_echo, NORMAL_PRIORITY, &Z502_REG3, &Z502_REG9);
-	printf("Hello World!\n");
->>>>>>> ac1a63dfd11d64b4df377b4bbabb118feac27a78
+
 	TERMINATE_PROCESS(-2, &Z502_REG9);
 }                                               // End test1m
 
