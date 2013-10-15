@@ -782,7 +782,6 @@ int msg_sender(long sid, long tid, char *msg, int msgLength)
 
 	return SUCCESS;
 }
-
 int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *actualSid)
 {
 	MsgQueue msgCursor, preMsgQueue;
@@ -998,7 +997,7 @@ void    fault_handler( void )
 void    svc( SYSTEM_CALL_DATA *SystemCallData ) 
 {
     short               call_type;
-    static short        do_print = 100;
+    static short        do_print = 0;
     short               i;
 	//INT32				Time;
 	INT32				Temp;
@@ -1253,6 +1252,7 @@ void    osInit( int argc, char *argv[]  ) {
 	suspendQueue->next = NULL;
 	msgQueue->next = NULL;
 	globalAddType = ADD_BY_PRIOR;
+	srand(time(NULL));
 
     /* Demonstrates how calling arguments are passed thru to here       */
 

@@ -61,13 +61,15 @@ extern long Z502_REG9;
 extern INT16 Z502_MODE;
 
 /*      Prototypes for internally called routines.                  */
-
+void   myGirl( void );
 void   test1x(void);
 void   test1j_echo(void);
 void   test2hx(void);
 void   ErrorExpected(INT32, char[]);
 void   SuccessExpected(INT32, char[]);
 void   get_skewed_random_number( long *, long );
+
+static int totalWeight = 0;
 
 /**************************************************************************
 
@@ -1103,24 +1105,105 @@ void test1l(void) {
  your Operating System.
 
  **************************************************************************/
-void test1m(void) {
-    static boyWords[5][50] = {  "I love you!", 
-                                "See you!", "I give up!", 
-                                "Wish you happy!", 
+typedef struct {
+    long    target_pid;
+    long    source_pid;
+    long    actual_source_pid;
+    long    send_length;
+    long    receive_length;
+    long    actual_send_length;
+    long    loop_count;
+    char    msg_buffer[LEGAL_MESSAGE_LENGTH ];
+} TEST1m_DATA;
+void test1m(void) 
+{
+	TEST1m_DATA *td; 
+	int r ;
+	static int iteration = 13;
+	char *wordCursor;
+    static char boyWords[5][50] = {  "I love you!", 
+                                "Haha, I am kidding!", 
+								"I give up!", 
+                                "Today is a good day!", 
                                 "..."};
-    static girlWords[7][50] = { "Are you kidding?", 
-                                "I don't love you at all!", 
-                                "We are just friends", 
-                                "I already have boyfriend!", 
-                                "Actually, I love girls",
-                                "You are a good man, you can find a better girl",
-                                "I love you, too"};
-     // Make process to test with
-    CREATE_PROCESS("girl", test1j_echo, NORMAL_PRIORITY, &Z502_REG3, &Z502_REG9);
-	printf("Hello World!\n");
+	static int weight[5] = {1, 0,-1,0,0};
+
+	td = (TEST1m_DATA *) calloc(1, sizeof(TEST1m_DATA));
+    if (td == 0) {
+        printf("Something screwed up allocating space in test1m\n");
+    }
+
+    td->loop_count = 0;
+    // Make process to test with
+    CREATE_PROCESS("girl", myGirl, NORMAL_PRIORITY, &Z502_REG3, &Z502_REG9);
+	r = ( rand() % 5 );
+	wordCursor = boyWords[r];
+	totalWeight += weight[r];
+	while(1)
+	{
+		printf("Boy says:\t%s\n", wordCursor);
+		SEND_MESSAGE(1, wordCursor, 50, &Z502_REG9);
+		iteration--;
+		RECEIVE_MESSAGE(1, td->msg_buffer, 50,&(td->actual_send_length), &(td->actual_source_pid), &Z502_REG9);
+		
+		if(iteration <= 0)
+		{
+			printf("Boy says:\tI am fed up to talk with you anymore, it is not so interesting as programming by myself!\nGoodBye!\n");
+			break;
+		}
+
+		if(totalWeight >= 2)
+		{
+			printf("\nBoy and Girl stay together happily :-)\n");
+			break;
+		}
+
+		r = ( rand() % 5 );
+		wordCursor = boyWords[r];
+		totalWeight += weight[r];
+
+		if(totalWeight <= -2)
+		{
+			printf("Boy  says:\tI give up!\n");
+			printf("\nBoy's heart is hurt, then do programming all his later life forever \n");
+			break;
+		}
+	}
 	TERMINATE_PROCESS(-2, &Z502_REG9);
 }                                               // End test1m
 
+void myGirl( void )
+{
+	TEST1m_DATA *td; 
+	int r ;
+	char *wordCursor;
+	static char girlWords[7][50] = { "Are you kidding?", 
+									"I don't love you at all!", 
+									"We are just friends", 
+									"I already have boyfriend!", 
+									"Actually, I love girls",
+									"You are a good man, you can find a better girl",
+									"I love you, too"};
+	static int weight[7] = {0, -1, 0, -1, -1, 0, 1};
+	td = (TEST1m_DATA *) calloc(1, sizeof(TEST1m_DATA));
+    if (td == 0) {
+        printf("Something screwed up allocating space in test1m\n");
+    }
+
+    td->loop_count = 0;
+	while(1)
+	{
+		RECEIVE_MESSAGE(0, td->msg_buffer, 50,&(td->actual_send_length), &(td->actual_source_pid), &Z502_REG9);
+		r = ( rand() % 7 );
+		wordCursor = girlWords[r];
+		totalWeight = weight[r];
+		printf("Girl says:\t%s\n", wordCursor);
+		SEND_MESSAGE(0, wordCursor, 50, &Z502_REG9);
+		
+	}
+
+
+}
 /**************************************************************************
  Test1x
 
