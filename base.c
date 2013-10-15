@@ -92,8 +92,8 @@ void schedule_printer()
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+3, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
 	printf("\n");
 	SP_print_header();
-	CALL(MEM_READ( Z502ClockStatus, &currentTime ));
-	SP_setup( SP_TIME_MODE, (long)currentTime );
+	//CALL(MEM_READ( Z502ClockStatus, &currentTime ));
+	//SP_setup( SP_TIME_MODE, (long)currentTime );
 	if(readyQueue != NULL && readyQueue->next != NULL)
 	{
 		SP_setup( SP_TARGET_MODE, readyQueue->next->node->pid );
@@ -417,6 +417,9 @@ long process_creater(PCB *pcbNode)
 	totalQueueCursor->next = totalNodeTmp;
 	/**************************************************/
 	currentCountOfProcess++;
+
+	//resume_by_PID(-1);
+
 	return pcbNode->pid;
 }
 void myself_teminator( )
@@ -936,7 +939,7 @@ void    fault_handler( void )
 void    svc( SYSTEM_CALL_DATA *SystemCallData ) 
 {
     short               call_type;
-    static short        do_print = 10;
+    static short        do_print = 100;
     short               i;
 	//INT32				Time;
 	INT32				Temp;
