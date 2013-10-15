@@ -70,7 +70,11 @@ char                 *call_names[] = { "mem_read ", "mem_write",
                             "suspend  ", "resume   ", "ch_prior ",
                             "send     ", "receive  ", "disk_read",
                             "disk_wrt ", "def_sh_ar" };
-Queue totalQueue;
+
+// totalQueue is a global queue which contains all current nodes in the program
+// current totalQueue = current readyQueue + current timerQueue + current suspendQueue
+// totalQueue is useful to do GET_PID function
+Queue totalQueue; 
 Queue timerQueue;
 Queue readyQueue;
 Queue suspendQueue;
@@ -106,6 +110,7 @@ void schedule_printer()
 	SP_setup_action( SP_ACTION_MODE, action );
 	SP_setup( SP_RUNNING_MODE, currentPCBNode->pid );
 
+	// print information of readyQueue, if the nodes in readyQueue are more than 10, just print the first 10
 	queueCursor = readyQueue;
 	while(queueCursor->next != NULL)
 	{
@@ -119,6 +124,7 @@ void schedule_printer()
 		}
 	}
 
+	// print information of timerQueue, if the nodes in timerQueue are more than 10, just print the first 10
 	queueCursor = timerQueue;
 	while(queueCursor->next != NULL)
 	{
@@ -132,6 +138,7 @@ void schedule_printer()
 		}
 	}
 
+	// print information of suspendQueue, if the nodes in suspendQueue are more than 10, just print the first 10
 	queueCursor = suspendQueue;
 	while(queueCursor->next != NULL)
 	{
@@ -145,6 +152,7 @@ void schedule_printer()
 		}
 	}
 	CALL(SP_print_line());
+	// reset action to NULL
 	memset(action,'\0',8);
 	printf("\n");
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+3, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
@@ -217,21 +225,24 @@ void current_statue_print()
 }
 int start_timer(long *sleep_time)
 {
-	//INT32 currentTime;
+
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
-	//current_statue_print(); 
+
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	CALL(MEM_READ( Z502ClockStatus, &currentTime ));
 	_wakeUpTime = currentTime + (INT32)*sleep_time;
 	currentPCBNode->wakeUpTime = _wakeUpTime;
 	
+	// add current node into timer queue
 	nodeTmp = (QUEUE *)malloc(sizeof(QUEUE));
 	nodeTmp->node = currentPCBNode;
 	timerQueueCursor = timerQueue;
+
 	if(timerQueueCursor->next == NULL)
 	{
+		// if the timerQueue is NULL now,, just add it
 		nodeTmp->next = NULL;
 		timerQueueCursor->next = nodeTmp;
 	}
@@ -246,10 +257,11 @@ int start_timer(long *sleep_time)
 			{
 				nodeTmp->next = timerQueueCursor;
 				preTimerQueueCursor->next = nodeTmp;
-				break;
+				break; // break when the node is inserted, to save time
 			}
 		}
 
+		// if the wakeUpTime of current node is longer than anynode in timerQueue, just add it to the end
 		if(currentPCBNode->wakeUpTime > timerQueueCursor->node->wakeUpTime)
 		{
 			timerQueueCursor->next = nodeTmp;
@@ -259,14 +271,18 @@ int start_timer(long *sleep_time)
 	
 	CALL(MEM_WRITE(Z502TimerStart, sleep_time));
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+
+	// after the current node is inserted into timerQueue, just do dispatcher() to get a new node for current node
 	dispatcher();
 	return 0;
 }
+
 int dispatcher()
 {
+	// if no node in readyQueue now, just do Idle() to wait for sleeping node wake up by interruption 
 	while(readyQueue->next == NULL)
 	{
-		//if no process in the whole program, just halt 
+		// if no process in the whole program, just halt, as it meaningfulless to wait to forever
 		if(totalQueue->next == NULL)
 		{
 			Z502Halt();
@@ -275,6 +291,8 @@ int dispatcher()
 		CALL(Z502Idle());
 	}
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+
+	// reset current node with the first node in readyQueue
 	currentPCBNode = readyQueue->next->node;
 	//free the mode in readyQueue???
 	//pop up the first node from readyQueue
@@ -283,16 +301,22 @@ int dispatcher()
 	strncpy(action,"Dispatch",8);
 	schedule_printer();
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+
+	// switch to current node process
 	Z502SwitchContext( SWITCH_CONTEXT_SAVE_MODE, &(currentPCBNode->context) );
 }
+
 long get_pid_by_name(char *name)
 {
     Queue totalQueueCursor;
-	//current_statue_print();
+
+    // if name == "", just return current node's PID
 	if(strcmp(name, "") == 0)
 	{
 		return currentPCBNode->pid;
 	}
+
+	// otherwise, go through totalQueue to find the PID for the very name 
     totalQueueCursor = totalQueue;
 
     while(totalQueueCursor->next != NULL)
@@ -304,12 +328,15 @@ long get_pid_by_name(char *name)
         }
         
     }   
+
+    // if not find the name, just return error
     return NO_PCB_NODE_FOUND;
 }
 
 PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 {
 	void *next_context;
+	// generate a PCB node with the infomation we know
 	pcb = (PCB*)malloc(sizeof(PCB));
 	strcpy(pcb->name, (char*)SystemCallData->Argument[0]);
 	Z502MakeContext( &next_context, (void *)SystemCallData->Argument[1], USER_MODE );
@@ -317,9 +344,12 @@ PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 	pcb->prior = (int)SystemCallData->Argument[2];
 	return pcb;
 }
+
+// according the addType, add the node into readyQueue [append | based on priority]
 void new_node_add_to_readyQueue(Queue readyNode, int addType)
 {
 	Queue readyQueueCursor, tmpPreCursor;
+	// add node into readyQueue based on priority, samllest one is the first node in the readyQueue 
 	if(addType == ADD_BY_PRIOR)
 	{
 		if(readyQueue->next == NULL)
@@ -351,6 +381,7 @@ void new_node_add_to_readyQueue(Queue readyNode, int addType)
 	}
 	else 
 	{
+		// append the node at the end of readyQueue
 		readyQueueCursor = readyQueue;
 		while(readyQueueCursor->next != NULL)
 		{
@@ -397,16 +428,9 @@ long process_creater(PCB *pcbNode)
 	readyNodeTmp->next = NULL;
 	totalNodeTmp->next = NULL;
 
+	// add new node into readyQueue according globalAddType
 	new_node_add_to_readyQueue(readyNodeTmp, globalAddType);
-	/*
-	readyQueueCursor = readyQueue;
-	while(readyQueueCursor->next != NULL)
-	{
-		readyQueueCursor = readyQueueCursor->next;
 
-	}
-	readyQueueCursor->next = readyNodeTmp;
-	*/
 	//Add the new node into the end of totalQueue
 	/**************************************************/
 	totalQueueCursor = totalQueue;
@@ -422,6 +446,7 @@ long process_creater(PCB *pcbNode)
 
 	return pcbNode->pid;
 }
+
 void myself_teminator( )
 {
 	Queue tmpQueueCursor;
@@ -442,6 +467,7 @@ void myself_teminator( )
 		}
 	}
 
+	// after terminator itself, it must find other to replace itself
 	currentPCBNode = NULL;
 	dispatcher();
 
@@ -452,8 +478,11 @@ int process_teminator_by_pid(long pID)
 	Queue tmpQueueCursor;
 	Queue readyQueueCursor = readyQueue;
 	Queue timerQueueCursor = timerQueue;
+	Queue suspendQueueCursor = suspendQueue;
 	Queue totalQueueCursor = totalQueue;
 
+
+	// remove the node from totaoQueue to keep the totalQueue up-to-date
 	while(totalQueueCursor->next != NULL)
 	{
 		tmpQueueCursor = totalQueueCursor;
@@ -468,7 +497,9 @@ int process_teminator_by_pid(long pID)
 			break;
 		}
 	}
+
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+	// search the node whether in readyQueue, if found, just remove it, then return
 	while(readyQueueCursor->next != NULL)
 	{
 		tmpQueueCursor = readyQueueCursor;
@@ -483,6 +514,7 @@ int process_teminator_by_pid(long pID)
 		}
 	}
 
+	// if not found in readyQueue, search it in timerQueue, if found, just remove it, then return
 	while(timerQueueCursor->next != NULL)
 	{
 		tmpQueueCursor = timerQueueCursor;
@@ -496,9 +528,26 @@ int process_teminator_by_pid(long pID)
 			return SUCCESS;
 		}
 	}
+
+	// if not found in timerQueue, either, search it in suspendQueue, if found, just remove it, then return
+	while(suspendQueueCursor->next != NULL)
+	{
+		tmpQueueCursor = suspendQueueCursor;
+		suspendQueueCursor = suspendQueueCursor->next;
+		if(suspendQueueCursor->node->pid == pID)
+		{
+			//printf("\PID is found!\n");
+			tmpQueueCursor->next = suspendQueueCursor->next;
+			// free the node, which has been teminated from & removed from the Queue
+			free(suspendQueueCursor);
+			return SUCCESS;
+		}
+	}
 	//printf("\PID is not found!\n");
 	return FAIL;
 }
+
+// 
 int suspend_by_PID(long pid)
 {
 	Queue suspendQueueCursor, queueCursor, preQueueCursor;
