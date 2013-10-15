@@ -29,6 +29,7 @@
 #include             "syscalls.h"
 #include             "protos.h"
 #include             "string.h"
+#include             "stdlib.h"
 #include             "custom.h"
 
 //#include             "z502.h"
@@ -76,8 +77,8 @@ static long increamentPID = 1; //store the maximum pid for all process
 PCB *pcb;
 static int currentCountOfProcess = 0;
 static PCB *currentPCBNode;
-INT32 LockResult,LockResult2;
-int globalAddType = ADD_BY_PRIOR; //ADD_BY_END
+INT32 LockResult,LockResult2,LockResultPrinter;
+int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 
 void ready_queue_print()
 {
@@ -1034,7 +1035,8 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 				}
 			}
 			break;
-
+		
+		// this is not used in phase 1
 		case SYSNUM_MEM_READ:
 			if(SystemCallData->Argument[0] != Z502ClockStatus)
 			{
@@ -1050,7 +1052,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			}
 			else if((long)SystemCallData->Argument[0] == -1L)
 			{
-				printf("Current %ld is killed!\n", currentPCBNode->pid ); 
+				//printf("Current %ld is killed!\n", currentPCBNode->pid ); 
 				myself_teminator();
 			}
 			else
@@ -1100,6 +1102,7 @@ void    osInit( int argc, char *argv[]  ) {
 	timerQueue->next = NULL;
 	suspendQueue->next = NULL;
 	msgQueue->next = NULL;
+	globalAddType = ADD_BY_PRIOR;
 
     /* Demonstrates how calling arguments are passed thru to here       */
 
@@ -1146,6 +1149,7 @@ void    osInit( int argc, char *argv[]  ) {
 	else if (strncmp( test, "test1c", 6 ) == 0 ) 
 	{
 		Z502MakeContext( &next_context, (void *)test1c, USER_MODE );
+		globalAddType = ADD_BY_END; //ADD_BY_END | ADD_BY_PRIOR
 	}
 	else if (strncmp( test, "test1d", 6 ) == 0 ) 
 	{

@@ -843,6 +843,7 @@ void test1j(void) {
     while (Z502_REG9 == ERR_SUCCESS) {
         td->target_pid = -1;
         sprintf(td->msg_sent, "This is message %ld", td->send_loop_count);
+		//printf("%s\n", td->msg_sent);
         td->send_length = 20;
         SEND_MESSAGE(td->target_pid, td->msg_sent, td->send_length, &Z502_REG9);
 
@@ -1103,6 +1104,8 @@ void test1l(void) {
 
  **************************************************************************/
 void test1m(void) {
+	printf("Hello World!\n");
+	TERMINATE_PROCESS(-2, &Z502_REG9);
 }                                               // End test1m
 
 /**************************************************************************
