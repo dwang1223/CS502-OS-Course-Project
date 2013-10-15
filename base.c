@@ -94,14 +94,14 @@ void schedule_printer()
 	SP_print_header();
 	//CALL(MEM_READ( Z502ClockStatus, &currentTime ));
 	//SP_setup( SP_TIME_MODE, (long)currentTime );
-	if(readyQueue != NULL && readyQueue->next != NULL)
-	{
-		SP_setup( SP_TARGET_MODE, readyQueue->next->node->pid );
-	}
-	else
-	{
+	//if(readyQueue != NULL && readyQueue->next != NULL)
+	//{
+	//	SP_setup( SP_TARGET_MODE, readyQueue->next->node->pid );
+	//}
+	//else
+	//{
 		SP_setup( SP_TARGET_MODE, currentPCBNode->pid );
-	}
+	//}
 	//strncpy(action,"Schedule",8);
 	SP_setup_action( SP_ACTION_MODE, action );
 	SP_setup( SP_RUNNING_MODE, currentPCBNode->pid );
