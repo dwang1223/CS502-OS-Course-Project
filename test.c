@@ -162,7 +162,7 @@ void test1b(void) {
 
     // Create two processes with same name - 1st succeeds, 2nd fails
     // Then terminate the process that has been created
-    CREATE_PROCESS("two_the_same", test1x, LEGAL_PRIORITY, &Z502_REG2,
+    CREATE_PROCESS("two_tthe_same", test1x, LEGAL_PRIORITY, &Z502_REG2,
             &Z502_REG9);
     SuccessExpected(Z502_REG9, "CREATE_PROCESS");
     CREATE_PROCESS("two_the_same", test1x, LEGAL_PRIORITY, &Z502_REG1,

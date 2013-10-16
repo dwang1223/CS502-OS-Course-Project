@@ -631,7 +631,7 @@ int resume_by_PID(long pid)
 		return ILLEGAL_PID;
 	}
 
-	// resume ALL
+	// (not)resume ALL
 	// change 10-05-2013 20:26, resume the first node in suspendQueueif the readyQueue is NULL, when target = -1
 	// 
 	if(pid == -1 && readyQueue->next == NULL)
@@ -654,6 +654,7 @@ int resume_by_PID(long pid)
 
 			break; // add 10-15-2013 20:27
 		}
+		return SUCCESS;
 	}
 	else
 	{
@@ -846,7 +847,7 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 		tmpCurrentNode->node = currentPCBNode;
 		tmpCurrentNode->next = NULL;
 		new_node_add_to_readyQueue(tmpCurrentNode, ADD_BY_END);
-		dispatcher();
+		//dispatcher();
 	}
 	else
 	{
@@ -867,9 +868,8 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 		queueCursor->next = queueNode;
 		READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 		// assign new node for currentPCBNode
-		dispatcher();
-		//current_statue_print();
 	}
+	dispatcher();
 	// recursive, until it finds a message for it
 	msg_receiver(sid, msg, msgLength, actualLength, actualSid);
 }
@@ -989,7 +989,7 @@ void    fault_handler( void )
 
 	if(device_id == 4 && status == 0)
 	{
-		printf("@@@@@Illegal hardware instruction\n");
+		printf("\n@@@@@Illegal hardware instruction\n\n");
 		Z502Halt();
 	}
     // Clear out this device - we're done with it
@@ -1010,7 +1010,7 @@ void    fault_handler( void )
 void    svc( SYSTEM_CALL_DATA *SystemCallData ) 
 {
     short               call_type;
-    static short        do_print = 100;
+    static short        do_print = 10;
     short               i;
 	//INT32				Time;
 	INT32				Temp;
@@ -1056,6 +1056,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 		
 		//Create Process
 		case SYSNUM_CREATE_PROCESS:
+			resume_by_PID(-1);
 			pcb = PCB_item_generator(SystemCallData);
 			pid = process_creater(pcb);
 			if(pid == ILLEGAL_PRIORITY || pid == NAME_DUPLICATED)
@@ -1281,9 +1282,10 @@ void    osInit( int argc, char *argv[]  ) {
     TO_VECTOR[TO_VECTOR_FAULT_HANDLER_ADDR] = (void *)fault_handler;
     TO_VECTOR[TO_VECTOR_TRAP_HANDLER_ADDR]  = (void *)svc;
 
-	if( argc > 1 )
+	if(argc > 1 )
 	{
 		strncpy(test,argv[1],6);
+		//strncpy(test,"test1l",6);
 	}
 	else
 	{
