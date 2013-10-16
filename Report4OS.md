@@ -1,5 +1,5 @@
 <h1 style="text-align:center;">Architectural Document </h1>
-<section style="text-align:center; color:red"><b>Attention</b>: my program is finished in VS 2010, so please compile & run it in <b>windows</b></section>
+<section style="text-align:center; color:red"><b>Attention</b>: my program is finished in VS 2010, so please compile & run it in <b>windows</b>. Thanks</section>
 ##a. Elements in your design
 ###1. Data Structure:
 ![Data Structure](http://i.imgur.com/gUJGhQT.jpg "Data Structure")
@@ -111,12 +111,13 @@ I also describe how other routines work above with images and details for each f
 
 	b.  How does it work?   
 	1). Conversation mode: boy begins the conversation, and each one gives one sentence for his/her turn, then wait for reply from other.    
-	2).  Test1m has three different results:  
+	2).  Test1m has three different results[***Just last two sentences can determine the result***]:  
 	- The girl agrees to be GF for this boy, then they stay together happily[Good result] -- This happens when boy says "I love you", then the girl replies "I love you, too";      
 	- The girl refuses this boy, and this boy gives up at last, then the boy does programming for his whole life without GF[Bad result] -- This happens when girl says one of these three sentences of "I don't love you at all!", "I already have boyfriend!", or "Actually, I love girls", then the boy fees hopeless, then replies "I give up!";            
 	- After talking to each other for a long time without any result, the boy loses his patience, then he thinks programming is more interesting than having GF, so he goes to continue his work[Not so good, not so bad result].   
 	
-	3). Why do I do this? I just want to figure out the probability how I can get a GF. Just for fun.
+	3). Why do I do this? I just want to figure out the probability how I can get a GF. Just for fun.  
+	4). ![Screen Shot](http://i.imgur.com/9BuoXeF.jpg "Happy Ending")
 ###6. Anomalies and bugs
 My program will throw "***Fault_handler: Found vector type 4 with value 0***" error in following two cases:    
 1. the `schedule_printer()` is called in some locations which seems not appropriate  

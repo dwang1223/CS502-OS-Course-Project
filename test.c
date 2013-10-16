@@ -1138,26 +1138,20 @@ void test1m(void)
     CREATE_PROCESS("girl", myGirl, NORMAL_PRIORITY, &Z502_REG3, &Z502_REG9);
 	r = ( rand() % 5 );
 	wordCursor = boyWords[r];
-	totalWeight += weight[r];
+	totalWeight = weight[r];
 	while(1)
 	{
+		//printf("Boy says:\t%s\t%d\n", wordCursor,totalWeight);
 		printf("Boy says:\t%s\n", wordCursor);
 		SEND_MESSAGE(1, wordCursor, 50, &Z502_REG9);
 		iteration--;
 		RECEIVE_MESSAGE(1, td->msg_buffer, 50,&(td->actual_send_length), &(td->actual_source_pid), &Z502_REG9);
 		
-		if(iteration <= 0)
-		{
-			printf("Boy says:\tI am fed up to talk with you anymore, it is not so interesting as programming by myself!\nGoodBye!\n");
-			break;
-		}
-
 		if(totalWeight >= 2)
 		{
 			printf("\nBoy and Girl stay together happily :-)\n\n\n");
 			break;
 		}
-
 		r = ( rand() % 5 );
 		wordCursor = boyWords[r];
 		totalWeight += weight[r];
@@ -1166,6 +1160,14 @@ void test1m(void)
 		{
 			printf("Boy  says:\tI give up!\n");
 			printf("\nBoy's heart is hurt, then do programming all his later life forever \n");
+			break;
+		}
+		// reset totalWeight
+		totalWeight = weight[r];
+
+		if(iteration <= 0)
+		{
+			printf("Boy says:\tI am fed up to talk with you anymore, it is not so interesting as programming by myself!\nGoodBye!\n");
 			break;
 		}
 	}
@@ -1198,12 +1200,13 @@ void myGirl( void )
 		r = ( rand() % 7 );
 		wordCursor = girlWords[r];
 		totalWeight += weight[r];
-		if(totalWeight != 2)
+		if(totalWeight < 2)
 		{
 			totalWeight = weight[r];
-			printf("Girl says:\t%s\n", wordCursor);
 		}
-		
+
+		//printf("Girl says:\t%s\t%d\n", wordCursor,totalWeight);
+		printf("Girl says:\t%s\n", wordCursor);
 		SEND_MESSAGE(0, wordCursor, 50, &Z502_REG9);
 		
 	}
