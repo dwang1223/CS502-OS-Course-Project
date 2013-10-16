@@ -82,7 +82,8 @@ This function will try to receive a message from msgQueue, if no message found f
 11. `interrupt_handler`    
 ![interrupt_handler](http://i.imgur.com/grvMXg4.jpg "interrupt_handler")
 12. `fault_handler`    
-![fault_handler](http://i.imgur.com/nOIz5ts.jpg "fault_handler")
+![fault_handler](http://i.imgur.com/nOIz5ts.jpg "fault_handler")    
+
 ###4. Justification of High Level Design
 In the user model(test.c), multiple system calls are called. So that in SVC (base.c) of kernel model, I define multiple routines to deal with different system calls.   
 
