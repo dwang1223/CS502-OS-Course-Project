@@ -43,7 +43,7 @@ void suspend_queue_print();
 void total_queue_print();
 void current_statue_print();
 int start_timer(long *);
-int dispatcher();
+void dispatcher();
 long get_pid_by_name(char *);
 PCB * PCB_item_generator(SYSTEM_CALL_DATA *);
 void new_node_add_to_readyQueue(Queue , int );
@@ -87,12 +87,16 @@ INT32 LockResult,LockResult2,LockResultPrinter;
 int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
+int enablePrinter = 1;
 
 void schedule_printer()
 {
 	Queue queueCursor;
 	int count = 0;
-	
+	if(enablePrinter == 0)
+	{
+		return;
+	}
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+3, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
 	printf("\n");
 	SP_print_header();
@@ -104,7 +108,7 @@ void schedule_printer()
 	//}
 	//else
 	//{
-		SP_setup( SP_TARGET_MODE, currentPCBNode->pid );
+	//	SP_setup( SP_TARGET_MODE, currentPCBNode->pid );
 	//}
 	//strncpy(action,"Schedule",8);
 	SP_setup_action( SP_ACTION_MODE, action );
@@ -112,7 +116,7 @@ void schedule_printer()
 
 	// print information of readyQueue, if the nodes in readyQueue are more than 10, just print the first 10
 	queueCursor = readyQueue;
-	while(queueCursor->next != NULL)
+	while(queueCursor != NULL && queueCursor->next != NULL)
 	{
 		queueCursor = queueCursor->next;
 		count++;
@@ -126,7 +130,7 @@ void schedule_printer()
 
 	// print information of timerQueue, if the nodes in timerQueue are more than 10, just print the first 10
 	queueCursor = timerQueue;
-	while(queueCursor->next != NULL)
+	while(queueCursor != NULL && queueCursor->next != NULL)
 	{
 		queueCursor = queueCursor->next;
 		count++;
@@ -140,7 +144,7 @@ void schedule_printer()
 
 	// print information of suspendQueue, if the nodes in suspendQueue are more than 10, just print the first 10
 	queueCursor = suspendQueue;
-	while(queueCursor->next != NULL)
+	while(queueCursor != NULL && queueCursor->next != NULL)
 	{
 		queueCursor = queueCursor->next;
 		count++;
@@ -277,7 +281,7 @@ int start_timer(long *sleep_time)
 	return 0;
 }
 
-int dispatcher()
+void dispatcher()
 {
 	// if no node in readyQueue now, just do Idle() to wait for sleeping node wake up by interruption 
 	while(readyQueue->next == NULL)
@@ -286,6 +290,14 @@ int dispatcher()
 		if(totalQueue->next == NULL)
 		{
 			Z502Halt();
+		}
+		if(timerQueue->next == NULL && suspendQueue->next != NULL)
+		{
+			currentPCBNode = suspendQueue->next->node;
+			suspendQueue->next = suspendQueue->next->next;
+			strncpy(action,"Dispath",8);
+			schedule_printer();
+			return;
 		}
 		currentPCBNode = NULL;
 		CALL(Z502Idle());
@@ -297,11 +309,9 @@ int dispatcher()
 	//free the mode in readyQueue???
 	//pop up the first node from readyQueue
 	readyQueue->next = readyQueue->next->next;
-
-	strncpy(action,"Dispatch",8);
-	schedule_printer();
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
-
+	strncpy(action,"Dispath",8);
+	schedule_printer();
 	// switch to current node process
 	Z502SwitchContext( SWITCH_CONTEXT_SAVE_MODE, &(currentPCBNode->context) );
 }
@@ -622,7 +632,9 @@ int resume_by_PID(long pid)
 	}
 
 	// resume ALL
-	if(pid == -1)
+	// change 10-05-2013 20:26, resume the first node in suspendQueueif the readyQueue is NULL, when target = -1
+	// 
+	if(pid == -1 && readyQueue->next == NULL)
 	{
 		suspendQueueCursor = suspendQueue;
 		while(suspendQueueCursor != NULL && suspendQueueCursor->next != NULL)
@@ -640,6 +652,7 @@ int resume_by_PID(long pid)
 			// now, we will remove the node from suspendQueue
 			preQueueCursor->next = suspendQueueCursor->next;
 
+			break; // add 10-15-2013 20:27
 		}
 	}
 	else
@@ -997,7 +1010,7 @@ void    fault_handler( void )
 void    svc( SYSTEM_CALL_DATA *SystemCallData ) 
 {
     short               call_type;
-    static short        do_print = 0;
+    static short        do_print = 100;
     short               i;
 	//INT32				Time;
 	INT32				Temp;
@@ -1122,7 +1135,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			{
 				*(long *)SystemCallData->Argument[2] = ERR_BAD_PARAM;
 			}
-			strncpy(action,"Chg_Pior",8);
+			strncpy(action,"ChgPior",8);
 			schedule_printer();
 			break;
 
@@ -1215,7 +1228,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 					*(long *)SystemCallData->Argument[1] = ERR_BAD_PARAM;
 				}
 			}
-			strncpy(action,"Teminate",8);
+			strncpy(action,"Teminat",8);
 			schedule_printer();
             break;
         default:  
@@ -1339,6 +1352,7 @@ void    osInit( int argc, char *argv[]  ) {
 	}
 	else if (strncmp( test, "test1m", 6 ) == 0 ) 
 	{
+		enablePrinter = 0;
 		Z502MakeContext( &next_context, (void *)test1m, USER_MODE );
 	}
 	else

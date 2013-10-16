@@ -1183,7 +1183,7 @@ void myGirl( void )
 									"We are just friends", 
 									"I already have boyfriend!", 
 									"Actually, I love girls",
-									"You are a good man, you can find a better girl",
+									"You're a good man, you can find a better girl",
 									"I love you, too"};
 	static int weight[7] = {0, -1, 0, -1, -1, 0, 1};
 	td = (TEST1m_DATA *) calloc(1, sizeof(TEST1m_DATA));
