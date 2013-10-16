@@ -510,6 +510,14 @@ int process_teminator_by_pid(long pID)
 	}
 
 	/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+	// if the PID is the running PCB's pid
+	if(pID == currentPCBNode->pid)
+	{
+		myself_teminator();
+		return SUCCESS;
+	}
+	
+
 	// search the node whether in readyQueue, if found, just remove it, then return
 	while(readyQueueCursor->next != NULL)
 	{
@@ -921,14 +929,12 @@ void    interrupt_handler( void ) {
 	*/
 	//add the first node from timerQueue to the end of readyQueue
 	timerQueueCursor = timerQueue;
-
+	// get current time 
+	MEM_READ( Z502ClockStatus, &currentTime );
 	while(timerQueueCursor != NULL && timerQueueCursor->next != NULL)
 	{
 		preTmpCursor = timerQueueCursor;
 		timerQueueCursor = timerQueueCursor->next;
-
-		// get current time 
-		MEM_READ( Z502ClockStatus, &currentTime );
 
 		if(timerQueueCursor->node->wakeUpTime <= currentTime)
 		{

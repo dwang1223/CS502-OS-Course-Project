@@ -1119,7 +1119,7 @@ void test1m(void)
 {
 	TEST1m_DATA *td; 
 	int r ;
-	static int iteration = 13;
+	static int iteration = 17;
 	char *wordCursor;
     static char boyWords[5][50] = {  "I love you!", 
                                 "Haha, I am kidding!", 
@@ -1154,7 +1154,7 @@ void test1m(void)
 
 		if(totalWeight >= 2)
 		{
-			printf("\nBoy and Girl stay together happily :-)\n");
+			printf("\nBoy and Girl stay together happily :-)\n\n\n");
 			break;
 		}
 
@@ -1197,8 +1197,13 @@ void myGirl( void )
 		RECEIVE_MESSAGE(0, td->msg_buffer, 50,&(td->actual_send_length), &(td->actual_source_pid), &Z502_REG9);
 		r = ( rand() % 7 );
 		wordCursor = girlWords[r];
-		totalWeight = weight[r];
-		printf("Girl says:\t%s\n", wordCursor);
+		totalWeight += weight[r];
+		if(totalWeight != 2)
+		{
+			totalWeight = weight[r];
+			printf("Girl says:\t%s\n", wordCursor);
+		}
+		
 		SEND_MESSAGE(0, wordCursor, 50, &Z502_REG9);
 		
 	}
