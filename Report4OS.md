@@ -1,5 +1,5 @@
-Architectural Document. 
-=============
+<h1 style="text-align:center;">Architectural Document </h1>
+<section style="text-align:center; color:red"><b>Attention</b>: my program is finished in VS 2010, so please compile & run it in <b>windows</b></section>
 ##a. Elements in your design
 ###1. Data Structure:
 ![Data Structure](http://i.imgur.com/gUJGhQT.jpg "Data Structure")
