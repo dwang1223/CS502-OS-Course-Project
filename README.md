@@ -118,11 +118,12 @@ I also describe how other routines work above with images and details for each f
 	- After talking to each other for a long time without any result, the boy loses his patience, then he thinks programming is more interesting than having GF, so he goes to continue his work[Not so good, not so bad result].   
 	
 	3). Why do I do this? I just want to figure out the probability how I can get a GF. Just for fun.  
-	4). ![Screen Shot](http://i.imgur.com/9BuoXeF.jpg "Happy Ending")
+	4).        
+![Screen Shot](http://i.imgur.com/9BuoXeF.jpg "Happy Ending")
 ###6. Anomalies and bugs
 My program will throw "***Fault_handler: Found vector type 4 with value 0***" error in following two cases:    
-1. the `schedule_printer()` is called in some locations which seems not appropriate  
-2. in test1l case 2, I stuck on this issue
+	1. the `schedule_printer()` is called in some locations which seems not appropriate  
+	2. in test1l case 2, I stuck on this issue
 
 Source Code
 ========
