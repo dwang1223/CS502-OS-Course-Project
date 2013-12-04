@@ -57,3 +57,16 @@ typedef struct message
 	MSG *node;
 	struct message *next;
 } *MsgQueue, MESSAGE;
+
+typedef struct
+{
+	long frameID;
+	long pageID;
+	long pid;
+} FRM;
+
+typedef struct frame
+{
+	FRM *node;
+	struct frame *next;
+} *FrmQueue, FRAME;
