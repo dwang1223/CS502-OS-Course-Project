@@ -1224,6 +1224,14 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 				Z502Halt();
 			}
 			break;
+
+		case SYSNUM_DISK_READ:
+
+			break;
+	
+		case SYSNUM_DISK_WRITE:
+
+			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
 			if((long)SystemCallData->Argument[0] == -2L)
