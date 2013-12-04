@@ -49,6 +49,8 @@
 
 #define         SV_ACTIVE                       (short)0
 #define         SV_VALUE                        (short)1
+#define         SV_TID                          (short)2
+#define         SV_DIMENSION                    (short)3
 
 
 typedef struct
