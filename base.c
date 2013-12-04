@@ -55,6 +55,7 @@ int resume_by_PID(long );
 int priority_changer(long , int );
 int msg_sender(long , long , char *, int );
 int msg_receiver(long , char *, int , long *, long *);
+void append_to_frameQueue(FRM *);
 void interrupt_handler( void );
 void fault_handler( void );
 void svc( SYSTEM_CALL_DATA * );
@@ -306,7 +307,6 @@ void dispatcher()
 	// switch to current node process
 	Z502SwitchContext( SWITCH_CONTEXT_SAVE_MODE, &(currentPCBNode->context) );
 }
-
 long get_pid_by_name(char *name)
 {
     Queue totalQueueCursor;
@@ -333,7 +333,6 @@ long get_pid_by_name(char *name)
     // if not find the name, just return error
     return NO_PCB_NODE_FOUND;
 }
-
 PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 {
 	void *next_context;
@@ -345,7 +344,6 @@ PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 	pcb->prior = (int)SystemCallData->Argument[2];
 	return pcb;
 }
-
 // according the addType, add the node into readyQueue [append | based on priority]
 void new_node_add_to_readyQueue(Queue readyNode, int addType)
 {
@@ -393,7 +391,6 @@ void new_node_add_to_readyQueue(Queue readyNode, int addType)
 		readyQueueCursor->next = readyNode;
 	}
 }
-
 /* 
  * if priority is legal & process name is unique, 
  * then create this process, and add it to the end of readyQueue 
@@ -448,7 +445,6 @@ long process_creater(PCB *pcbNode)
 
 	return pcbNode->pid;
 }
-
 void myself_teminator( )
 {
 	Queue tmpQueueCursor;
@@ -474,7 +470,6 @@ void myself_teminator( )
 	dispatcher();
 
 }
-
 int process_teminator_by_pid(long pID)
 {
 	Queue tmpQueueCursor;
@@ -556,7 +551,6 @@ int process_teminator_by_pid(long pID)
 	//printf("\PID is not found!\n");
 	return FAIL;
 }
-
 // suspend self is illegal
 int suspend_by_PID(long pid)
 {
@@ -863,7 +857,26 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 	// recursive, until it finds a message for it
 	msg_receiver(sid, msg, msgLength, actualLength, actualSid);
 }
+void append_to_frameQueue(FRM *frmNode)
+{
+	Queue frameQueueCursor;
+	FrmQueue frmQueueNode;
 
+	// get the end of frmQueue
+	frameQueueCursor = frmQueue;
+	while (frameQueueCursor->next != NULL)
+	{
+		frameQueueCursor = frameQueueCursor->next;
+	}
+
+	// setup new node in frmQueue
+	frmQueueNode = (FRAME *)malloc(sizeof(FRAME));
+	frmQueueNode->node = frmNode;
+	frmQueueNode->next = NULL;
+	
+	// add the new node into frmQueue
+	frameQueueCursor->next = frmQueueNode;
+}
 /************************************************************************
     INTERRUPT_HANDLER
         When the Z502 gets a hardware interrupt, it transfers control to
@@ -965,7 +978,7 @@ void    fault_handler( void )
     INT32       status;
     INT32       Index = 0;
 	FRM			*frmNode;
-	FrmQueue	frmQueueNode;
+	
 
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
@@ -976,6 +989,11 @@ void    fault_handler( void )
 
     printf( "Fault_handler: Found vector type %d with value %d\n",
                         device_id, status );
+	if (status >= 1024)
+	{
+		printf("\n@@@@@Page size overflow!\n\n");
+		Z502Halt();
+	}
 
 	if (Z502_PAGE_TBL_ADDR==NULL)
 	{
@@ -986,9 +1004,10 @@ void    fault_handler( void )
 	frmNode->pageID = status;
 	frmNode->frameID = frameMaxCurrentID++;
 	frmNode->pid = currentPCBNode->pid;
-	frmQueueNode = (FRAME *)malloc(sizeof(FRAME));
-	frmQueueNode->node = frmNode;
-	frmQueueNode->next = NULL;
+
+
+	// add the node to the frmQueue
+	append_to_frameQueue(frmNode);
 
 	Z502_PAGE_TBL_ADDR[frmNode->pageID] = (UINT16)frmNode->frameID | 0x8000;
 		
@@ -1294,7 +1313,7 @@ void    osInit( int argc, char *argv[]  ) {
 	else
 	{
 		//fgets (test, 20, stdin);
-		strncpy(test,"test2a",6);
+		strncpy(test,"test2b",6);
 	}
 
     /*  Determine if the switch was set, and if so go to demo routine.  */
@@ -1370,7 +1389,7 @@ void    osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2a, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2b, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
