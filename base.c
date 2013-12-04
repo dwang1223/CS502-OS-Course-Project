@@ -1289,7 +1289,7 @@ void    osInit( int argc, char *argv[]  ) {
 	}
 
     /*  Determine if the switch was set, and if so go to demo routine.  */
-
+	/*
     if (strncmp( test, "sample", 6 ) == 0 ) 
 	{
         Z502MakeContext( &next_context, (void *)sample_code, KERNEL_MODE );
@@ -1358,8 +1358,10 @@ void    osInit( int argc, char *argv[]  ) {
 		printf("Illegal Input\n");
 		exit(0);
 	}
-	
+	*/
 	// generate current node (now it is the root node)
+	
+	Z502MakeContext( &next_context, (void *)test2a, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
