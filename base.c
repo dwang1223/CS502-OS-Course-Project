@@ -100,17 +100,6 @@ void schedule_printer()
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+3, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
 	printf("\n");
 	SP_print_header();
-	//CALL(MEM_READ( Z502ClockStatus, &currentTime ));
-	//SP_setup( SP_TIME_MODE, (long)currentTime );
-	//if(readyQueue != NULL && readyQueue->next != NULL)
-	//{
-	//	SP_setup( SP_TARGET_MODE, readyQueue->next->node->pid );
-	//}
-	//else
-	//{
-	//	SP_setup( SP_TARGET_MODE, currentPCBNode->pid );
-	//}
-	//strncpy(action,"Schedule",8);
 	SP_setup_action( SP_ACTION_MODE, action );
 	SP_setup( SP_RUNNING_MODE, currentPCBNode->pid );
 
@@ -1295,7 +1284,8 @@ void    osInit( int argc, char *argv[]  ) {
 	}
 	else
 	{
-		fgets (test, 20, stdin);
+		//fgets (test, 20, stdin);
+		strncpy(test,"test2a",6);
 	}
 
     /*  Determine if the switch was set, and if so go to demo routine.  */
@@ -1304,7 +1294,7 @@ void    osInit( int argc, char *argv[]  ) {
 	{
         Z502MakeContext( &next_context, (void *)sample_code, KERNEL_MODE );
         Z502SwitchContext( SWITCH_CONTEXT_KILL_MODE, &next_context );
-    }                   /* This routine should never return!!           */
+    }                  
 	else if (strncmp( test, "test0", 5 ) == 0 ) 
 	{
 		Z502MakeContext( &next_context, (void *)test0, USER_MODE );

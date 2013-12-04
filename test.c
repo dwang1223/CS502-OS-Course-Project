@@ -1346,7 +1346,8 @@ void SuccessExpected(INT32 ErrorCode, char sys_call[]) {
 /**************************************************************************
  Test2a exercises a simple memory write and read
 
- Use:  Z502_REG1                data_written
+ Use:  
+ Z502_REG1                data_written
  Z502_REG2                data_read
  Z502_REG3                address
  Z502_REG4                process_id
