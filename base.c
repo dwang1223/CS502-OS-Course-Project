@@ -79,7 +79,9 @@ Queue timerQueue;
 Queue readyQueue;
 Queue suspendQueue;
 MsgQueue msgQueue;
+FrmQueue frmQueue;
 static long increamentPID = 1; //store the maximum pid for all process
+static long frameMaxCurrentID = 1; //store the maximum pid for all process
 PCB *pcb;
 static int currentCountOfProcess = 0;
 static PCB *currentPCBNode;
@@ -754,21 +756,12 @@ int msg_sender(long sid, long tid, char *msg, int msgLength)
 {
 	MSG *msgNode;
 	MsgQueue msgCursor, msgQueueNode;
-	// first, resume the target node, if it is suspended
-	//resume_by_PID(sid);
+
 	// check whether the pid is legal or not
 	if(tid > MAX_LEGAL_PID)
 	{
 		return ILLEGAL_PID;
 	}
-	/*
-	// target id = -1 means a broadcast, not means the target to itself
-	// so, in msg queue, it is legal that the target id = -1
-	if(tid == -1L)
-	{
-		tid = sid;
-	}
-	*/
 
 	// add the msg node at the end of msgQueue
 	msgCursor = msgQueue;
@@ -967,10 +960,12 @@ void    interrupt_handler( void ) {
 ************************************************************************/
 
 void    fault_handler( void )
-    {
+{
     INT32       device_id;
     INT32       status;
     INT32       Index = 0;
+	FRM			*frmNode;
+	FrmQueue	frmQueueNode;
 
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
@@ -982,6 +977,21 @@ void    fault_handler( void )
     printf( "Fault_handler: Found vector type %d with value %d\n",
                         device_id, status );
 
+	if (Z502_PAGE_TBL_ADDR==NULL)
+	{
+		Z502_PAGE_TBL_LENGTH = 1024;
+		Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
+	}
+	frmNode = (FRM *)malloc(sizeof(FRM));
+	frmNode->pageID = status;
+	frmNode->frameID = frameMaxCurrentID++;
+	frmNode->pid = currentPCBNode->pid;
+	frmQueueNode = (FRAME *)malloc(sizeof(FRAME));
+	frmQueueNode->node = frmNode;
+	frmQueueNode->next = NULL;
+
+	Z502_PAGE_TBL_ADDR[frmNode->pageID] = (UINT16)frmNode->frameID | 0x8000;
+		
 	if(device_id == 4 && status == 0)
 	{
 		printf("\n@@@@@Illegal hardware instruction\n\n");
@@ -1007,7 +1017,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
     short               call_type;
     static short        do_print = 10;
     short               i;
-	//INT32				Time;
 	INT32				Temp;
 	PCB					*pcb;
 	static long			pid;
@@ -1018,7 +1027,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	long				actual_send_length;
 	long				actual_source_pid;
 	static int			msgCount = 0;
-	//extern long			Z502_REG1;
 
     call_type = (short)SystemCallData->SystemCallNumber;
     if ( do_print > 0 ) 
@@ -1026,7 +1034,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
         printf( "SVC handler: %s\n", call_names[call_type]);
         for (i = 0; i < SystemCallData->NumberOfArguments - 1; i++ )
 		{
-        	 //Value = (long)*SystemCallData->Argument[i];
              printf( "Arg %d: Contents = (Decimal) %8ld,  (Hex) %8lX\n", i,
              (unsigned long )SystemCallData->Argument[i],
              (unsigned long )SystemCallData->Argument[i]);
@@ -1045,8 +1052,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 		//SLEEP CALL
 		case SYSNUM_SLEEP:
 			start_timer(&(INT32*)SystemCallData->Argument[0]);
-			//strncpy(action,"Sleep",8);
-			//schedule_printer();
 			break;
 		
 		//Create Process
@@ -1255,6 +1260,10 @@ void    osInit( int argc, char *argv[]  ) {
 	timerQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	suspendQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	msgQueue = (MESSAGE *)malloc(sizeof(MESSAGE));
+
+	frmQueue = (FRAME *)malloc(sizeof(FRAME));
+	frmQueue->next = NULL;
+
 	totalQueue->next = NULL;
 	readyQueue->next = NULL;
 	timerQueue->next = NULL;
