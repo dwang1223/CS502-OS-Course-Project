@@ -1046,7 +1046,7 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	long				actual_send_length;
 	long				actual_source_pid;
 	static int			msgCount = 0;
-
+	INT32				diskStatus;
     call_type = (short)SystemCallData->SystemCallNumber;
     if ( do_print > 0 ) 
 	{
@@ -1226,11 +1226,47 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
 
 		case SYSNUM_DISK_READ:
-
+			MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
+			MEM_READ(Z502DiskStatus, &diskStatus);
+			if (diskStatus == DEVICE_FREE)        // Disk hasn't been used - should be free
+				printf("Got expected result for Disk Status\n");
+			else
+				printf("Got erroneous result for Disk Status - Device not free.\n");
+			MEM_WRITE(Z502DiskSetSector, &SystemCallData->Argument[1]);
+			MEM_WRITE(Z502DiskSetBuffer, (INT32*)SystemCallData->Argument[2]);
+			diskStatus = 0;                        // Specify a read
+			MEM_WRITE(Z502DiskSetAction, &diskStatus);
+			diskStatus = 0;                        // Must be set to 0
+			MEM_WRITE(Z502DiskStart, &diskStatus);
+			MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
+			MEM_READ(Z502DiskStatus, &diskStatus);
+			while (diskStatus != DEVICE_FREE) 
+			{
+				Z502Idle();
+				MEM_READ(Z502DiskStatus, &diskStatus);
+			}
 			break;
 	
 		case SYSNUM_DISK_WRITE:
-
+			MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
+			MEM_READ(Z502DiskStatus, &diskStatus);
+			if (diskStatus == DEVICE_FREE)        // Disk hasn't been used - should be free
+				printf("Got expected result for Disk Status\n");
+			else
+				printf("Got erroneous result for Disk Status - Device not free.\n");
+			MEM_WRITE(Z502DiskSetSector, &SystemCallData->Argument[1]);
+			MEM_WRITE(Z502DiskSetBuffer, (char*)SystemCallData->Argument[2]);
+			diskStatus = 1;                        // Specify a write
+			MEM_WRITE(Z502DiskSetAction, &diskStatus);
+			diskStatus = 0;                        // Must be set to 0
+			MEM_WRITE(Z502DiskStart, &diskStatus);
+			MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
+			MEM_READ(Z502DiskStatus, &diskStatus);
+			while (diskStatus != DEVICE_FREE)
+			{
+				Z502Idle();
+				MEM_READ(Z502DiskStatus, &diskStatus);
+			}
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
@@ -1397,7 +1433,7 @@ void    osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2b, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2c, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
