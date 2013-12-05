@@ -62,7 +62,7 @@ void svc( SYSTEM_CALL_DATA * );
 void osInit( int , char **  );
 void frameInit( void );
 void diskInit(void);
-void disk_readOrWrite(long , long , char* , int );
+void disk_readOrWrite(long , long , char* , int, int );
 int check_disk_status(long);
 void append_currentPCB_to_diskQueue(long , long , char* , int);
 
@@ -365,7 +365,7 @@ void new_node_add_to_readyQueue(Queue readyNode, int addType)
 		{
 			// if the readQueue is not NULL, just find the proper place to insert the new node
 			readyQueueCursor = readyQueue;
-			while(readyQueueCursor->next != NULL)
+			while (readyQueueCursor != NULL && readyQueueCursor->next != NULL)
 			{
 				tmpPreCursor = readyQueueCursor;
 				readyQueueCursor = readyQueueCursor->next;
@@ -910,9 +910,10 @@ int check_disk_status(long diskID)
 	MEM_READ(Z502DiskStatus, &diskStatus);
 	return diskStatus;
 }
-void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
+void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite, int isCurrent)
 {
 	INT32 diskStatus;
+	Queue tmpNode = (QUEUE*)malloc(sizeof(QUEUE));
 	diskStatus = check_disk_status(diskID);
 
 	if (diskStatus == DEVICE_FREE)        // Disk hasn't been used - should be free
@@ -935,8 +936,10 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	MEM_WRITE(Z502DiskStart, &diskStatus);
 	
 	// add current PCB node into readyQueue
-	new_node_add_to_readyQueue(currentPCBNode, ADD_BY_PRIOR);
-	dispatcher();
+	tmpNode->node = currentPCBNode;
+	tmpNode->next = NULL;
+	new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
+	if(isCurrent == 1) dispatcher();
 
 	/*
 	MEM_WRITE(Z502DiskSetID, &diskID);
@@ -961,8 +964,9 @@ void    interrupt_handler( void ) {
     INT32              status;
     INT32              Index = 0;
 	INT32			   sleepTime;
-
+	long			   diskID;
 	Queue readyQueueCursor, timerQueueCursor, preTmpCursor, queueNode;
+	DiskQueue diskQueueCursor;
 	//INT32 currentTime;
 	
 
@@ -1015,15 +1019,23 @@ void    interrupt_handler( void ) {
 			READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 			break;
 
-		case DISK_INTERRUPT_DISK1:
+		default:
+			// make the first node in diskQueue be the current one
+			diskID = device_id - 4;
+			
+			if (check_disk_status(diskID) == DEVICE_FREE && diskQueue[(int)diskID]->next != NULL)
+			{
+				diskQueueCursor = diskQueue[(int)diskID]->next;
+				disk_readOrWrite(diskQueueCursor->diskID, diskQueueCursor->sectorID, diskQueueCursor->buffer, diskQueueCursor->readOrWrite, 0);
+				diskQueue[(int)diskID]->next = diskQueue[(int)diskID]->next->next;
 
+				queueNode = (QUEUE*)malloc(sizeof(QUEUE));
+				queueNode->node = diskQueueCursor->PCB;
+				queueNode->next = NULL;
+				new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
+			}
 			break;
 
-		case DISK_INTERRUPT_DISK2:
-			break;
-
-		case DISK_INTERRUPT_DISK3:
-			break;
 	}
 
 	
@@ -1283,14 +1295,14 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			disk_readOrWrite(	SystemCallData->Argument[0], 
 								SystemCallData->Argument[1], 
 								SystemCallData->Argument[2], 
-								DISK_READ );
+								DISK_READ, 1 );
 			break;
 	
 		case SYSNUM_DISK_WRITE:
 			disk_readOrWrite(	SystemCallData->Argument[0],
 								SystemCallData->Argument[1],
 								SystemCallData->Argument[2],
-								DISK_WRITE);
+								DISK_WRITE, 1);
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
