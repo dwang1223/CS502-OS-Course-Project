@@ -61,6 +61,7 @@ void fault_handler( void );
 void svc( SYSTEM_CALL_DATA * );
 void osInit( int , char **  );
 void frameInit( void );
+void diskInit(void);
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -82,6 +83,7 @@ Queue readyQueue;
 Queue suspendQueue;
 MsgQueue msgQueue;
 FrmQueue frmQueue;
+DiskQueue diskQueue[MAX_NUMBER_OF_DISKS];
 static long increamentPID = 1; //store the maximum pid for all process
 static long frameMaxCurrentID = 1; //store the maximum pid for all process
 PCB *pcb;
@@ -901,8 +903,6 @@ void    interrupt_handler( void ) {
     MEM_READ(Z502InterruptStatus, &status );
     // Clear out this device - we're done with it
 
-	
-
 	switch (device_id)
 	{
 		case TIMER_INTERRUPT:
@@ -945,6 +945,7 @@ void    interrupt_handler( void ) {
 			break;
 
 		case DISK_INTERRUPT_DISK1:
+
 			break;
 
 		case DISK_INTERRUPT_DISK2:
@@ -1324,6 +1325,16 @@ void frameInit( void )
 	
 
 }
+void diskInit(void)
+{
+	int i = 0;
+	for (i = 0; i < MAX_NUMBER_OF_DISKS; i++)
+	{
+		diskQueue[i] = (DiskNode *)malloc(sizeof(DiskNode));
+		diskQueue[i]->next = NULL;
+	}
+
+}
 
 void    osInit( int argc, char *argv[]  ) {
     void                *next_context;
@@ -1350,6 +1361,7 @@ void    osInit( int argc, char *argv[]  ) {
 	srand(time(NULL));
 
 	frameInit();
+	diskInit();
     /* Demonstrates how calling arguments are passed thru to here       */
 
     printf( "Program called with %d arguments:", argc );
@@ -1448,7 +1460,7 @@ void    osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2b, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2c, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
