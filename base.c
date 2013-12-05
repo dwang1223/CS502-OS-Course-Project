@@ -935,11 +935,14 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite,
 	diskStatus = 0;                        // Must be set to 0
 	MEM_WRITE(Z502DiskStart, &diskStatus);
 	
-	// add current PCB node into readyQueue
-	tmpNode->node = currentPCBNode;
-	tmpNode->next = NULL;
-	new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
-	if(isCurrent == 1) dispatcher();
+	if (isCurrent == 1)
+	{
+		// add current PCB node into readyQueue
+		tmpNode->node = currentPCBNode;
+		tmpNode->next = NULL;
+		new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
+		dispatcher();
+	}
 
 	/*
 	MEM_WRITE(Z502DiskSetID, &diskID);
@@ -1033,6 +1036,7 @@ void    interrupt_handler( void ) {
 				queueNode->node = diskQueueCursor->PCB;
 				queueNode->next = NULL;
 				new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
+				if (currentPCBNode == NULL) dispatcher();
 			}
 			break;
 
