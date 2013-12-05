@@ -64,6 +64,7 @@ void frameInit( void );
 void diskInit(void);
 void disk_readOrWrite(long , long , char* , int );
 int check_disk_status(long);
+void append_currentPCB_to_diskQueue(long , long , char* , int);
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -882,6 +883,26 @@ void append_to_frameQueue(FRM *frmNode)
 	// add the new node into frmQueue
 	frameQueueCursor->next = frmQueueNode;
 }
+void append_currentPCB_to_diskQueue(long diskID, long sectorID, char* buffer, int readOrWrite)
+{
+	DiskQueue diskQueueCursor;
+	DiskQueue diskNode = (DiskNode *)malloc(sizeof(DiskNode));
+	diskNode->diskID = diskID;
+	diskNode->sectorID = sectorID;
+	diskNode->readOrWrite = readOrWrite;
+	diskNode->PCB = currentPCBNode;
+	strcpy(diskNode->buffer, buffer);
+	diskNode->next = NULL;
+
+	diskQueueCursor = diskQueue[(int)diskID];
+	while (diskQueueCursor->next != NULL)
+	{
+		diskQueueCursor = diskQueueCursor->next;
+	}
+
+	diskQueueCursor->next = diskNode;
+}
+
 int check_disk_status(long diskID)
 {
 	INT32 diskStatus;
@@ -895,9 +916,14 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	diskStatus = check_disk_status(diskID);
 
 	if (diskStatus == DEVICE_FREE)        // Disk hasn't been used - should be free
+	{
 		printf("Got expected result for Disk Status\n");
+	}
 	else
-		printf("Got erroneous result for Disk Status - Device not free.\n");
+	{
+		append_currentPCB_to_diskQueue(diskID, sectorID, buffer, readOrWrite);
+		dispatcher();
+	}
 
 	MEM_WRITE(Z502DiskSetID, &diskID);
 	MEM_WRITE(Z502DiskSetSector, &sectorID);
@@ -908,6 +934,11 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	diskStatus = 0;                        // Must be set to 0
 	MEM_WRITE(Z502DiskStart, &diskStatus);
 	
+	// add current PCB node into readyQueue
+	new_node_add_to_readyQueue(currentPCBNode, ADD_BY_PRIOR);
+	dispatcher();
+
+	/*
 	MEM_WRITE(Z502DiskSetID, &diskID);
 	MEM_READ(Z502DiskStatus, &diskStatus);
 	while (diskStatus != DEVICE_FREE)
@@ -915,6 +946,7 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 		Z502Idle();
 		MEM_READ(Z502DiskStatus, &diskStatus);
 	}
+	*/
 	
 }
 

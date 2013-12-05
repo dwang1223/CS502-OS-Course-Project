@@ -77,7 +77,8 @@ typedef struct frame
 
 typedef struct disk
 {
-	long diskID;
+	int readOrWrite;
+	long diskID;    // diskID may not be used here
 	long sectorID;
 	char buffer[PGSIZE];
 	PCB *PCB;
