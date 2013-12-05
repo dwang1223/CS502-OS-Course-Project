@@ -1638,6 +1638,8 @@ void test2e(void) {
             printf("AN ERROR HAS OCCURRED.\n");
 
     }    // End of for loop
+
+	TERMINATE_PROCESS(-2, &Z502_REG9);
 }                                  // End of test2e    
 
 /**************************************************************************
@@ -1660,7 +1662,7 @@ void test2e(void) {
 #define                 LOGICAL_PAGES_TO_TOUCH       2 * PHYS_MEM_PGS
 
 typedef struct {
-    INT16 page_touched[LOGICAL_PAGES_TO_TOUCH];
+	INT16 page_touched[LOOP_COUNT];
 } MEMORY_TOUCHED_RECORD;
 
 void test2f(void) {

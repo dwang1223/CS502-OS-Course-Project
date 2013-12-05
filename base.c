@@ -886,9 +886,8 @@ void    interrupt_handler( void ) {
     INT32              device_id;
     INT32              status;
     INT32              Index = 0;
-	INT32				sleepTime;
-    //static BOOL        remove_this_in_your_code = TRUE;   /** TEMP **/
-    //static INT32       how_many_interrupt_entries = 0;    /** TEMP **/
+	INT32			   sleepTime;
+
 	Queue readyQueueCursor, timerQueueCursor, preTmpCursor, queueNode;
 	//INT32 currentTime;
 	
@@ -899,70 +898,56 @@ void    interrupt_handler( void ) {
     MEM_WRITE(Z502InterruptDevice, &device_id );
     // Now read the status of this device
     MEM_READ(Z502InterruptStatus, &status );
-
-    /** REMOVE THE NEXT SIX LINES **/
-    //how_many_interrupt_entries++;                         /** TEMP **/
-    /*if ( remove_this_in_your_code && ( how_many_interrupt_entries < 20 ) )
-        {
-        printf( "Interrupt_handler: Found device ID %d with status %d\n",
-                        device_id, status );
-    }
-	*/
     // Clear out this device - we're done with it
-    
 
-	//get current absolute time
-	
-	//get the end of readyQueue
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
-	/*
-	readyQueueCursor = readyQueue;
-	while(readyQueueCursor->next != NULL)
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+
+	switch (device_id)
 	{
-		readyQueueCursor = readyQueueCursor->next;
-	}
-	*/
-	//add the first node from timerQueue to the end of readyQueue
-	timerQueueCursor = timerQueue;
-	// get current time 
-	MEM_READ( Z502ClockStatus, &currentTime );
-	while(timerQueueCursor != NULL && timerQueueCursor->next != NULL)
-	{
-		preTmpCursor = timerQueueCursor;
-		timerQueueCursor = timerQueueCursor->next;
+		case TIMER_INTERRUPT:
+			//add the first node from timerQueue to the end of readyQueue
+			timerQueueCursor = timerQueue;
+			// get current time 
+			MEM_READ(Z502ClockStatus, &currentTime);
+			while (timerQueueCursor != NULL && timerQueueCursor->next != NULL)
+			{
+				preTmpCursor = timerQueueCursor;
+				timerQueueCursor = timerQueueCursor->next;
 
-		if(timerQueueCursor->node->wakeUpTime <= currentTime)
-		{
-			//clone a queue node
-			queueNode = (QUEUE *)malloc(sizeof(QUEUE));
-			queueNode->node = timerQueueCursor->node;
-			queueNode->next = NULL;
+				if (timerQueueCursor->node->wakeUpTime <= currentTime)
+				{
+					//clone a queue node
+					queueNode = (QUEUE *)malloc(sizeof(QUEUE));
+					queueNode->node = timerQueueCursor->node;
+					queueNode->next = NULL;
 
-			new_node_add_to_readyQueue(queueNode, globalAddType);
+					new_node_add_to_readyQueue(queueNode, globalAddType);
+					preTmpCursor->next = timerQueueCursor->next;
+					timerQueueCursor = timerQueueCursor->next;
+				}
+				else
+				{
+					break;
+				}
+			}
 
-			//readyQueueCursor->next = timerQueueCursor;
-			preTmpCursor->next = timerQueueCursor->next;
+			//reset sleep time to ensure there will be a interrupt to pop out the node in the timerQueue
 
-			timerQueueCursor = timerQueueCursor->next;
-
-			//readyQueueCursor = readyQueueCursor->next;
- 			//readyQueueCursor->next = NULL;
-		}
-		else
-		{
+			if (timerQueue->next != NULL)
+			{
+				CALL(MEM_READ(Z502ClockStatus, &currentTime));
+				sleepTime = timerQueue->next->node->wakeUpTime - currentTime;
+				CALL(MEM_WRITE(Z502TimerStart, &sleepTime));
+			}
 			break;
-		}
+		case DISK_INTERRUPT_DISK1:
+			break;
+		case DISK_INTERRUPT_DISK2:
+			break;
+		case DISK_INTERRUPT_DISK3:
+			break;
 	}
 
-	//reset sleep time to ensure there will be a interrupt to pop out the node in the timerQueue
-	
-	if(timerQueue->next != NULL)
-	{
-		CALL(MEM_READ( Z502ClockStatus, &currentTime ));
-		sleepTime = timerQueue->next->node->wakeUpTime-currentTime;
-		CALL(MEM_WRITE(Z502TimerStart, &sleepTime));
-	}
-	
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 
 	MEM_WRITE(Z502InterruptClear, &Index );
@@ -1238,13 +1223,13 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			MEM_WRITE(Z502DiskSetAction, &diskStatus);
 			diskStatus = 0;                        // Must be set to 0
 			MEM_WRITE(Z502DiskStart, &diskStatus);
-			MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
+			/*MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
 			MEM_READ(Z502DiskStatus, &diskStatus);
 			while (diskStatus != DEVICE_FREE) 
 			{
 				Z502Idle();
 				MEM_READ(Z502DiskStatus, &diskStatus);
-			}
+			}*/
 			break;
 	
 		case SYSNUM_DISK_WRITE:
@@ -1260,13 +1245,13 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			MEM_WRITE(Z502DiskSetAction, &diskStatus);
 			diskStatus = 0;                        // Must be set to 0
 			MEM_WRITE(Z502DiskStart, &diskStatus);
-			MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
+			/*MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
 			MEM_READ(Z502DiskStatus, &diskStatus);
 			while (diskStatus != DEVICE_FREE)
 			{
 				Z502Idle();
 				MEM_READ(Z502DiskStatus, &diskStatus);
-			}
+			}*/
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
