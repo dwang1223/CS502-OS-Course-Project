@@ -60,6 +60,7 @@ void interrupt_handler( void );
 void fault_handler( void );
 void svc( SYSTEM_CALL_DATA * );
 void osInit( int , char **  );
+void frameInit( void );
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -900,11 +901,12 @@ void    interrupt_handler( void ) {
     MEM_READ(Z502InterruptStatus, &status );
     // Clear out this device - we're done with it
 
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+	
 
 	switch (device_id)
 	{
 		case TIMER_INTERRUPT:
+			READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 			//add the first node from timerQueue to the end of readyQueue
 			timerQueueCursor = timerQueue;
 			// get current time 
@@ -939,16 +941,20 @@ void    interrupt_handler( void ) {
 				sleepTime = timerQueue->next->node->wakeUpTime - currentTime;
 				CALL(MEM_WRITE(Z502TimerStart, &sleepTime));
 			}
+			READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 			break;
+
 		case DISK_INTERRUPT_DISK1:
 			break;
+
 		case DISK_INTERRUPT_DISK2:
 			break;
+
 		case DISK_INTERRUPT_DISK3:
 			break;
 	}
 
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	
 
 	MEM_WRITE(Z502InterruptClear, &Index );
 }                                       /* End of interrupt_handler */
@@ -1293,6 +1299,32 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
         defined and initialized here.
 ************************************************************************/
 
+void frameInit( void )
+{
+	int i = 0;
+	FrmQueue frameQueueCursor, frmQueueNode;
+	FRM	*frmNode;
+	frmQueue = (FRAME *)malloc(sizeof(FRAME));
+	frmQueue->next = NULL;
+
+	frameQueueCursor = frmQueue;
+	while (i < (int)PHYS_MEM_PGS)
+	{
+		frmNode = (FRM *)malloc(sizeof(FRM));
+		frmNode->frameID = i;
+
+		frmQueueNode = (FRAME *)malloc(sizeof(FRAME));
+		frmQueueNode->node = frmNode;
+		frmQueueNode->next = NULL;
+
+		frameQueueCursor->next = frmQueueNode;
+		frameQueueCursor = frameQueueCursor->next;
+		i++;
+	}
+	
+
+}
+
 void    osInit( int argc, char *argv[]  ) {
     void                *next_context;
     INT32               i;
@@ -1309,9 +1341,6 @@ void    osInit( int argc, char *argv[]  ) {
 	suspendQueue = (QUEUE *)malloc(sizeof(QUEUE));
 	msgQueue = (MESSAGE *)malloc(sizeof(MESSAGE));
 
-	frmQueue = (FRAME *)malloc(sizeof(FRAME));
-	frmQueue->next = NULL;
-
 	totalQueue->next = NULL;
 	readyQueue->next = NULL;
 	timerQueue->next = NULL;
@@ -1320,6 +1349,7 @@ void    osInit( int argc, char *argv[]  ) {
 	globalAddType = ADD_BY_PRIOR;
 	srand(time(NULL));
 
+	frameInit();
     /* Demonstrates how calling arguments are passed thru to here       */
 
     printf( "Program called with %d arguments:", argc );
@@ -1418,7 +1448,7 @@ void    osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2c, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2b, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;

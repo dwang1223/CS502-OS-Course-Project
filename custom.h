@@ -70,3 +70,13 @@ typedef struct frame
 	FRM *node;
 	struct frame *next;
 } *FrmQueue, FRAME;
+
+
+typedef struct disk
+{
+	long diskID;
+	long sectorID;
+	char buffer[PGSIZE];
+	PCB *PCB;
+	struct disk *next;
+} *DiskQueue, DiskNode;
