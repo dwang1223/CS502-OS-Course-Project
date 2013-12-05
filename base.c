@@ -62,6 +62,8 @@ void svc( SYSTEM_CALL_DATA * );
 void osInit( int , char **  );
 void frameInit( void );
 void diskInit(void);
+void disk_readOrWrite(long , long , char* , int );
+int check_disk_status(long);
 
 // These loacations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -880,6 +882,43 @@ void append_to_frameQueue(FRM *frmNode)
 	// add the new node into frmQueue
 	frameQueueCursor->next = frmQueueNode;
 }
+int check_disk_status(long diskID)
+{
+	INT32 diskStatus;
+	MEM_WRITE(Z502DiskSetID, &diskID);
+	MEM_READ(Z502DiskStatus, &diskStatus);
+	return diskStatus;
+}
+void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
+{
+	INT32 diskStatus;
+	diskStatus = check_disk_status(diskID);
+
+	if (diskStatus == DEVICE_FREE)        // Disk hasn't been used - should be free
+		printf("Got expected result for Disk Status\n");
+	else
+		printf("Got erroneous result for Disk Status - Device not free.\n");
+
+	MEM_WRITE(Z502DiskSetID, &diskID);
+	MEM_WRITE(Z502DiskSetSector, &sectorID);
+	MEM_WRITE(Z502DiskSetBuffer, (INT32 *)buffer);
+
+	diskStatus = readOrWrite;                     
+	MEM_WRITE(Z502DiskSetAction, &diskStatus);
+	diskStatus = 0;                        // Must be set to 0
+	MEM_WRITE(Z502DiskStart, &diskStatus);
+	
+	MEM_WRITE(Z502DiskSetID, &diskID);
+	MEM_READ(Z502DiskStatus, &diskStatus);
+	while (diskStatus != DEVICE_FREE)
+	{
+		Z502Idle();
+		MEM_READ(Z502DiskStatus, &diskStatus);
+	}
+	
+}
+
+
 /************************************************************************
     INTERRUPT_HANDLER
         When the Z502 gets a hardware interrupt, it transfers control to
@@ -1208,57 +1247,18 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			//schedule_printer();
 			break;
 		
-		// this is not used in phase 1
-		case SYSNUM_MEM_READ:
-			if(SystemCallData->Argument[0] != Z502ClockStatus)
-			{
-				printf("Illegal hardware instruction\n");
-				Z502Halt();
-			}
-			break;
-
 		case SYSNUM_DISK_READ:
-			MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
-			MEM_READ(Z502DiskStatus, &diskStatus);
-			if (diskStatus == DEVICE_FREE)        // Disk hasn't been used - should be free
-				printf("Got expected result for Disk Status\n");
-			else
-				printf("Got erroneous result for Disk Status - Device not free.\n");
-			MEM_WRITE(Z502DiskSetSector, &SystemCallData->Argument[1]);
-			MEM_WRITE(Z502DiskSetBuffer, (INT32*)SystemCallData->Argument[2]);
-			diskStatus = 0;                        // Specify a read
-			MEM_WRITE(Z502DiskSetAction, &diskStatus);
-			diskStatus = 0;                        // Must be set to 0
-			MEM_WRITE(Z502DiskStart, &diskStatus);
-			/*MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
-			MEM_READ(Z502DiskStatus, &diskStatus);
-			while (diskStatus != DEVICE_FREE) 
-			{
-				Z502Idle();
-				MEM_READ(Z502DiskStatus, &diskStatus);
-			}*/
+			disk_readOrWrite(	SystemCallData->Argument[0], 
+								SystemCallData->Argument[1], 
+								SystemCallData->Argument[2], 
+								DISK_READ );
 			break;
 	
 		case SYSNUM_DISK_WRITE:
-			MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
-			MEM_READ(Z502DiskStatus, &diskStatus);
-			if (diskStatus == DEVICE_FREE)        // Disk hasn't been used - should be free
-				printf("Got expected result for Disk Status\n");
-			else
-				printf("Got erroneous result for Disk Status - Device not free.\n");
-			MEM_WRITE(Z502DiskSetSector, &SystemCallData->Argument[1]);
-			MEM_WRITE(Z502DiskSetBuffer, (char*)SystemCallData->Argument[2]);
-			diskStatus = 1;                        // Specify a write
-			MEM_WRITE(Z502DiskSetAction, &diskStatus);
-			diskStatus = 0;                        // Must be set to 0
-			MEM_WRITE(Z502DiskStart, &diskStatus);
-			/*MEM_WRITE(Z502DiskSetID, &SystemCallData->Argument[0]);
-			MEM_READ(Z502DiskStatus, &diskStatus);
-			while (diskStatus != DEVICE_FREE)
-			{
-				Z502Idle();
-				MEM_READ(Z502DiskStatus, &diskStatus);
-			}*/
+			disk_readOrWrite(	SystemCallData->Argument[0],
+								SystemCallData->Argument[1],
+								SystemCallData->Argument[2],
+								DISK_WRITE);
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
@@ -1268,7 +1268,6 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			}
 			else if((long)SystemCallData->Argument[0] == -1L)
 			{
-				//printf("Current %ld is killed!\n", currentPCBNode->pid ); 
 				myself_teminator();
 			}
 			else

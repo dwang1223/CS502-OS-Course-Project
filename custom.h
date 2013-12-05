@@ -29,6 +29,9 @@
 #define                  SUSPEND_UNTIL_LOCKED        TRUE
 #define                  DO_NOT_SUSPEND              FALSE
 
+#define					DISK_READ						0
+#define					DISK_WRITE						1
+
 typedef struct
 {
 	long pid;
