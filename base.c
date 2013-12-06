@@ -92,7 +92,7 @@ static long frameMaxCurrentID = 1; //store the maximum pid for all process
 PCB *pcb;
 static int currentCountOfProcess = 0;
 static PCB *currentPCBNode;
-INT32 LockResult,LockResult2,LockResultPrinter;
+INT32 LockResult, LockResult2, LockResultPrinter, TimeLockResult;
 int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
@@ -106,7 +106,7 @@ void schedule_printer()
 	{
 		return;
 	}
-	READ_MODIFY(MEMORY_INTERLOCK_BASE+3, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
+	READ_MODIFY(MEMORY_INTERLOCK_BASE+11, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
 	printf("\n");
 	SP_print_header();
 	SP_setup_action( SP_ACTION_MODE, action );
@@ -141,6 +141,7 @@ void schedule_printer()
 	}
 
 	// print information of suspendQueue, if the nodes in suspendQueue are more than 10, just print the first 10
+	
 	queueCursor = suspendQueue;
 	while(queueCursor != NULL && queueCursor->next != NULL)
 	{
@@ -157,7 +158,7 @@ void schedule_printer()
 	// reset action to NULL
 	memset(action,'\0',8);
 	printf("\n");
-	READ_MODIFY(MEMORY_INTERLOCK_BASE+3, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
+	READ_MODIFY(MEMORY_INTERLOCK_BASE+11, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
 }
 void ready_queue_print()
 {
@@ -174,7 +175,7 @@ void timer_queue_print()
 {
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	Queue timerQueueCursor = timerQueue;
-	READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
+	//READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
 	CALL(MEM_READ( Z502ClockStatus, &currentTime ));
 	printf("timerQueue(%d):\t",currentTime);
 	//printf("\ntimerQueue:\t");
@@ -184,7 +185,7 @@ void timer_queue_print()
 		printf("%ld(%d)  ",timerQueueCursor->node->pid, timerQueueCursor->node->wakeUpTime);
 	}
 	printf("\n");
-	READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
+	//READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
 }
 void suspend_queue_print()
 {
@@ -210,7 +211,7 @@ void total_queue_print()
 }
 void current_statue_print()
 {
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	ready_queue_print();
 	suspend_queue_print();
 	timer_queue_print();
@@ -223,7 +224,7 @@ void current_statue_print()
 		printf("Running node is NULL\n\n");
 	}
 	
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 }
 int start_timer(long *sleep_time)
 {
@@ -231,7 +232,7 @@ int start_timer(long *sleep_time)
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
 
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	CALL(MEM_READ( Z502ClockStatus, &currentTime ));
 	_wakeUpTime = currentTime + (INT32)*sleep_time;
@@ -272,7 +273,7 @@ int start_timer(long *sleep_time)
 	}
 	
 	CALL(MEM_WRITE(Z502TimerStart, sleep_time));
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 
 	// after the current node is inserted into timerQueue, just do dispatcher() to get a new node for current node
 	dispatcher();
@@ -300,14 +301,14 @@ void dispatcher()
 		currentPCBNode = NULL;
 		CALL(Z502Idle());
 	}
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 
 	// reset current node with the first node in readyQueue
 	currentPCBNode = readyQueue->next->node;
 	//free the mode in readyQueue???
 	//pop up the first node from readyQueue
 	readyQueue->next = readyQueue->next->next;
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	strncpy(action,"Dispath",8);
 	schedule_printer();
 	// switch to current node process
@@ -845,7 +846,7 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 		// then add current node into suspendQueue
 		// at last, do switch context
 
-		READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+		//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 		queueCursor = suspendQueue;
 		while(queueCursor != NULL && queueCursor->next != NULL)
 		{
@@ -856,7 +857,7 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 		queueNode->node = currentPCBNode;
 		queueNode->next = NULL;
 		queueCursor->next = queueNode;
-		READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+		//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 		// assign new node for currentPCBNode
 	}
 	dispatcher();
@@ -984,7 +985,7 @@ void    interrupt_handler( void ) {
 	switch (device_id)
 	{
 		case TIMER_INTERRUPT:
-			READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+			//READ_MODIFY(MEMORY_INTERLOCK_BASE+10, DO_LOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
 			//add the first node from timerQueue to the end of readyQueue
 			timerQueueCursor = timerQueue;
 			// get current time 
@@ -1019,7 +1020,7 @@ void    interrupt_handler( void ) {
 				sleepTime = timerQueue->next->node->wakeUpTime - currentTime;
 				CALL(MEM_WRITE(Z502TimerStart, &sleepTime));
 			}
-			READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 10, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
 			break;
 
 		default:
@@ -1096,11 +1097,11 @@ void    fault_handler( void )
 
 	Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] = (UINT16)frameQueueCursor->node->frameID | 0x8000;
 		
-	if(device_id == 4 && status == 0)
-	{
-		printf("\n@@@@@Illegal hardware instruction\n\n");
-		Z502Halt();
-	}
+	//if(device_id == 4 && status == 0)
+	//{
+	//	printf("\n@@@@@Illegal hardware instruction\n\n");
+	//	//Z502Halt();
+	//}
     // Clear out this device - we're done with it
     MEM_WRITE(Z502InterruptClear, &Index );
 }                                       /* End of fault_handler */
@@ -1513,7 +1514,7 @@ void    osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2c, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
