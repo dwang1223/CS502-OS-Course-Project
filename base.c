@@ -1028,15 +1028,16 @@ void    interrupt_handler( void ) {
 			
 			if (check_disk_status(diskID) == DEVICE_FREE && diskQueue[(int)diskID]->next != NULL)
 			{
+				
 				diskQueueCursor = diskQueue[(int)diskID]->next;
-				disk_readOrWrite(diskQueueCursor->diskID, diskQueueCursor->sectorID, diskQueueCursor->buffer, diskQueueCursor->readOrWrite, 0);
+				//disk_readOrWrite(diskQueueCursor->diskID, diskQueueCursor->sectorID, diskQueueCursor->buffer, diskQueueCursor->readOrWrite, 0);
 				diskQueue[(int)diskID]->next = diskQueue[(int)diskID]->next->next;
 
 				queueNode = (QUEUE*)malloc(sizeof(QUEUE));
 				queueNode->node = diskQueueCursor->PCB;
 				queueNode->next = NULL;
 				new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
-				if (currentPCBNode == NULL) dispatcher();
+				//if (currentPCBNode == NULL) dispatcher();
 			}
 			break;
 
@@ -1512,7 +1513,7 @@ void    osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2b, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2c, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
