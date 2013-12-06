@@ -66,6 +66,7 @@ typedef struct
 	long frameID;
 	long pageID;
 	long pid;
+	int isAvailable;
 } FRM;
 
 typedef struct frame
