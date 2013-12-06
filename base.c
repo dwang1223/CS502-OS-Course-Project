@@ -935,14 +935,14 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite,
 	diskStatus = 0;                        // Must be set to 0
 	MEM_WRITE(Z502DiskStart, &diskStatus);
 	
-	if (isCurrent == 1)
-	{
+	//if (isCurrent == 1)
+	//{
 		// add current PCB node into readyQueue
 		tmpNode->node = currentPCBNode;
 		tmpNode->next = NULL;
 		new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
 		dispatcher();
-	}
+	//}
 
 	/*
 	MEM_WRITE(Z502DiskSetID, &diskID);
@@ -1056,8 +1056,7 @@ void    fault_handler( void )
     INT32       device_id;
     INT32       status;
     INT32       Index = 0;
-	FRM			*frmNode;
-	
+	FrmQueue	frameQueueCursor;
 
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
@@ -1079,16 +1078,22 @@ void    fault_handler( void )
 		Z502_PAGE_TBL_LENGTH = 1024;
 		Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
 	}
-	frmNode = (FRM *)malloc(sizeof(FRM));
-	frmNode->pageID = status;
-	frmNode->frameID = frameMaxCurrentID++;
-	frmNode->pid = currentPCBNode->pid;
+	frameQueueCursor = frmQueue->next;
+	while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
+	{
+		frameQueueCursor = frameQueueCursor->next;
+	}
+	if (frameQueueCursor != NULL)
+	{
+		frameQueueCursor->node->pageID = status;
+		frameQueueCursor->node->pid = currentPCBNode->pid;
+	}
+	else
+	{
+		// TODO: replace algrithm
+	}
 
-
-	// add the node to the frmQueue
-	append_to_frameQueue(frmNode);
-
-	Z502_PAGE_TBL_ADDR[frmNode->pageID] = (UINT16)frmNode->frameID | 0x8000;
+	Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] = (UINT16)frameQueueCursor->node->frameID | 0x8000;
 		
 	if(device_id == 4 && status == 0)
 	{
@@ -1360,7 +1365,7 @@ void frameInit( void )
 	{
 		frmNode = (FRM *)malloc(sizeof(FRM));
 		frmNode->frameID = i;
-
+		frmNode->isAvailable = 1;
 		frmQueueNode = (FRAME *)malloc(sizeof(FRAME));
 		frmQueueNode->node = frmNode;
 		frmQueueNode->next = NULL;
@@ -1507,7 +1512,7 @@ void    osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2c, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2b, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
