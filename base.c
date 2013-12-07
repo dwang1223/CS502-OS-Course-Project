@@ -36,6 +36,7 @@
 #define         ILLEGAL_PRIORITY                -3
 #define         NAME_DUPLICATED					-4
 
+void memory_printer();
 void schedule_printer();
 void ready_queue_print();
 void timer_queue_print();
@@ -98,6 +99,71 @@ char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
 int enablePrinter = 1;
 
+void memory_printer()
+{
+	Queue queueCursor;
+	//DiskQueue diskQueueCursor;
+	int count = 0;
+	//int diskIndex = 1;
+	if (enablePrinter == 0)
+	{
+		return;
+	}
+	READ_MODIFY(MEMORY_INTERLOCK_BASE + 12, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
+	printf("\n");
+	SP_print_header();
+	SP_setup_action(SP_ACTION_MODE, action);
+	SP_setup(SP_RUNNING_MODE, currentPCBNode->pid);
+
+	// print information of readyQueue, if the nodes in readyQueue are more than 10, just print the first 10
+	queueCursor = readyQueue;
+	while (queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		count++;
+		SP_setup(SP_READY_MODE, queueCursor->node->pid);
+		if (count >= 10)
+		{
+			count = 0;
+			break;
+		}
+	}
+
+	// print information of timerQueue, if the nodes in timerQueue are more than 10, just print the first 10
+	queueCursor = timerQueue;
+	while (queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		count++;
+		SP_setup(SP_WAITING_MODE, queueCursor->node->pid);
+		if (count >= 10)
+		{
+			count = 0;
+			break;
+		}
+	}
+
+	// print information of suspendQueue, if the nodes in suspendQueue are more than 10, just print the first 10
+
+	queueCursor = suspendQueue;
+	while (queueCursor != NULL && queueCursor->next != NULL)
+	{
+		queueCursor = queueCursor->next;
+		count++;
+		SP_setup(SP_SUSPENDED_MODE, queueCursor->node->pid);
+		if (count >= 10)
+		{
+			count = 0;
+			break;
+		}
+	}
+
+	SP_print_line();
+	// reset action to NULL
+	memset(action, '\0', 8);
+	printf("\n");
+	READ_MODIFY(MEMORY_INTERLOCK_BASE + 12, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
+}
 void schedule_printer()
 {
 	Queue queueCursor;
@@ -1046,6 +1112,7 @@ void    fault_handler( void )
     INT32       device_id;
     INT32       status;
     INT32       Index = 0;
+	INT32		i = 0;
 	FrmQueue	frameQueueCursor;
 
     // Get cause of interrupt
@@ -1056,6 +1123,7 @@ void    fault_handler( void )
     MEM_READ(Z502InterruptStatus, &status );
 
    // printf( "Fault_handler: Found vector type %d with value %d\n", device_id, status );
+
 	if (status >= 1024)
 	{
 		printf("\n@@@@@Page size overflow!\n\n");
@@ -1066,22 +1134,40 @@ void    fault_handler( void )
 	{
 		Z502_PAGE_TBL_LENGTH = 1024;
 		Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
+		for (i = 0; i < Z502_PAGE_TBL_LENGTH; i++)
+		{
+			Z502_PAGE_TBL_ADDR[i] = (UINT16)0;
+		}
 	}
+
 	frameQueueCursor = frmQueue->next;
+
+	// can do some optimization here, as when frame is changed to be used status, it will never return to unused status
 	while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
 	{
 		frameQueueCursor = frameQueueCursor->next;
 	}
 	if (frameQueueCursor != NULL)
 	{
+		frameQueueCursor->node->isAvailable = 0; // indicate that this frame is used
 		frameQueueCursor->node->pageID = status;
 		frameQueueCursor->node->pid = currentPCBNode->pid;
 	}
-	else
+	else  // this means all frames have been used before
 	{
 		// TODO: replace algrithm
+
+		for (i = 0; i < Z502_PAGE_TBL_LENGTH; i++)
+		{
+			if ((Z502_PAGE_TBL_ADDR[i] & 0x2000) == 0x2000)  // 0x2000 = 8192
+			{
+				//printf("#I am Here!\n");
+				break;
+			}
+		}
 	}
 
+	// make the page valid
 	Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] = (UINT16)frameQueueCursor->node->frameID | 0x8000;
 		
 	//if(device_id == 4 && status == 0)
@@ -1089,6 +1175,7 @@ void    fault_handler( void )
 	//	printf("\n@@@@@Illegal hardware instruction\n\n");
 	//	//Z502Halt();
 	//}
+
     // Clear out this device - we're done with it
     MEM_WRITE(Z502InterruptClear, &Index );
 }                                       /* End of fault_handler */
