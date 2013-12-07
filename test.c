@@ -61,16 +61,16 @@ extern long Z502_REG9;
 extern INT16 Z502_MODE;
 
 /*      Prototypes for internally called routines.                  */
-void   myGirl( void );
+
 void   test1x(void);
 void   test1j_echo(void);
 void   test2hx(void);
 void   ErrorExpected(INT32, char[]);
 void   SuccessExpected(INT32, char[]);
 void   get_skewed_random_number( long *, long );
+void   myGirl( void );
 
 static int totalWeight = 0;
-
 /**************************************************************************
 
  Test0
@@ -162,7 +162,7 @@ void test1b(void) {
 
     // Create two processes with same name - 1st succeeds, 2nd fails
     // Then terminate the process that has been created
-    CREATE_PROCESS("two_tthe_same", test1x, LEGAL_PRIORITY, &Z502_REG2,
+    CREATE_PROCESS("two_the_same", test1x, LEGAL_PRIORITY, &Z502_REG2,
             &Z502_REG9);
     SuccessExpected(Z502_REG9, "CREATE_PROCESS");
     CREATE_PROCESS("two_the_same", test1x, LEGAL_PRIORITY, &Z502_REG1,
@@ -845,7 +845,6 @@ void test1j(void) {
     while (Z502_REG9 == ERR_SUCCESS) {
         td->target_pid = -1;
         sprintf(td->msg_sent, "This is message %ld", td->send_loop_count);
-		//printf("%s\n", td->msg_sent);
         td->send_length = 20;
         SEND_MESSAGE(td->target_pid, td->msg_sent, td->send_length, &Z502_REG9);
 
@@ -1117,18 +1116,18 @@ typedef struct {
 } TEST1m_DATA;
 void test1m(void) 
 {
-	TEST1m_DATA *td; 
-	int r ;
-	static int iteration = 17;
-	char *wordCursor;
+    TEST1m_DATA *td; 
+    int r ;
+    static int iteration = 17;
+    char *wordCursor;
     static char boyWords[5][50] = {  "I love you!", 
                                 "Haha, I am kidding!", 
-								"I give up!", 
+                                "I give up!", 
                                 "Today is a good day!", 
                                 "..."};
-	static int weight[5] = {1, 0,-1,0,0};
+    static int weight[5] = {1, 0,-1,0,0};
 
-	td = (TEST1m_DATA *) calloc(1, sizeof(TEST1m_DATA));
+    td = (TEST1m_DATA *) calloc(1, sizeof(TEST1m_DATA));
     if (td == 0) {
         printf("Something screwed up allocating space in test1m\n");
     }
@@ -1136,80 +1135,80 @@ void test1m(void)
     td->loop_count = 0;
     // Make process to test with
     CREATE_PROCESS("girl", myGirl, NORMAL_PRIORITY, &Z502_REG3, &Z502_REG9);
-	r = ( rand() % 5 );
-	wordCursor = boyWords[r];
-	totalWeight = weight[r];
-	while(1)
-	{
-		//printf("Boy says:\t%s\t%d\n", wordCursor,totalWeight);
-		printf("Boy says:\t%s\n", wordCursor);
-		SEND_MESSAGE(1, wordCursor, 50, &Z502_REG9);
-		iteration--;
-		RECEIVE_MESSAGE(1, td->msg_buffer, 50,&(td->actual_send_length), &(td->actual_source_pid), &Z502_REG9);
-		
-		if(totalWeight >= 2)
-		{
-			printf("\nBoy and Girl stay together happily :-)\n\n\n");
-			break;
-		}
-		r = ( rand() % 5 );
-		wordCursor = boyWords[r];
-		totalWeight += weight[r];
+    r = ( rand() % 5 );
+    wordCursor = boyWords[r];
+    totalWeight = weight[r];
+    while(1)
+    {
+        //printf("Boy says:\t%s\t%d\n", wordCursor,totalWeight);
+        printf("Boy says:\t%s\n", wordCursor);
+        SEND_MESSAGE(1, wordCursor, 50, &Z502_REG9);
+        iteration--;
+        RECEIVE_MESSAGE(1, td->msg_buffer, 50,&(td->actual_send_length), &(td->actual_source_pid), &Z502_REG9);
+        
+        if(totalWeight >= 2)
+        {
+            printf("\nBoy and Girl stay together happily :-)\n\n\n");
+            break;
+        }
+        r = ( rand() % 5 );
+        wordCursor = boyWords[r];
+        totalWeight += weight[r];
 
-		if(totalWeight <= -2)
-		{
-			printf("Boy  says:\tI give up!\n");
-			printf("\nBoy's heart is hurt, then do programming all his later life forever \n");
-			break;
-		}
-		// reset totalWeight
-		totalWeight = weight[r];
+        if(totalWeight <= -2)
+        {
+            printf("Boy  says:\tI give up!\n");
+            printf("\nBoy's heart is hurt, then do programming all his later life forever \n");
+            break;
+        }
+        // reset totalWeight
+        totalWeight = weight[r];
 
-		if(iteration <= 0)
-		{
-			printf("Boy says:\tI am fed up to talk with you anymore, it is not so interesting as programming by myself!\nGoodBye!\n");
-			break;
-		}
-	}
+        if(iteration <= 0)
+        {
+            printf("Boy says:\tI am fed up to talk with you anymore, it is not so interesting as programming by myself!\nGoodBye!\n");
+            break;
+        }
+    }
 
-	TERMINATE_PROCESS(-2, &Z502_REG9);
+    TERMINATE_PROCESS(-2, &Z502_REG9);
 }                                               // End test1m
 
 void myGirl( void )
 {
-	TEST1m_DATA *td; 
-	int r ;
-	char *wordCursor;
-	static char girlWords[7][50] = { "Are you kidding?", 
-									"I don't love you at all!", 
-									"We are just friends", 
-									"I already have boyfriend!", 
-									"Actually, I love girls",
-									"You're a good man, you can find a better girl",
-									"I love you, too"};
-	static int weight[7] = {0, -1, 0, -1, -1, 0, 1};
-	td = (TEST1m_DATA *) calloc(1, sizeof(TEST1m_DATA));
+    TEST1m_DATA *td; 
+    int r ;
+    char *wordCursor;
+    static char girlWords[7][50] = { "Are you kidding?", 
+                                    "I don't love you at all!", 
+                                    "We are just friends", 
+                                    "I already have boyfriend!", 
+                                    "Actually, I love girls",
+                                    "You're a good man, you can find a better girl",
+                                    "I love you, too"};
+    static int weight[7] = {0, -1, 0, -1, -1, 0, 1};
+    td = (TEST1m_DATA *) calloc(1, sizeof(TEST1m_DATA));
     if (td == 0) {
         printf("Something screwed up allocating space in test1m\n");
     }
 
     td->loop_count = 0;
-	while(1)
-	{
-		RECEIVE_MESSAGE(0, td->msg_buffer, 50,&(td->actual_send_length), &(td->actual_source_pid), &Z502_REG9);
-		r = ( rand() % 7 );
-		wordCursor = girlWords[r];
-		totalWeight += weight[r];
-		if(totalWeight < 2)
-		{
-			totalWeight = weight[r];
-		}
+    while(1)
+    {
+        RECEIVE_MESSAGE(0, td->msg_buffer, 50,&(td->actual_send_length), &(td->actual_source_pid), &Z502_REG9);
+        r = ( rand() % 7 );
+        wordCursor = girlWords[r];
+        totalWeight += weight[r];
+        if(totalWeight < 2)
+        {
+            totalWeight = weight[r];
+        }
 
-		//printf("Girl says:\t%s\t%d\n", wordCursor,totalWeight);
-		printf("Girl says:\t%s\n", wordCursor);
-		SEND_MESSAGE(0, wordCursor, 50, &Z502_REG9);
-		
-	}
+        //printf("Girl says:\t%s\t%d\n", wordCursor,totalWeight);
+        printf("Girl says:\t%s\n", wordCursor);
+        SEND_MESSAGE(0, wordCursor, 50, &Z502_REG9);
+        
+    }
 
 
 }
@@ -1346,8 +1345,7 @@ void SuccessExpected(INT32 ErrorCode, char sys_call[]) {
 /**************************************************************************
  Test2a exercises a simple memory write and read
 
- Use:  
- Z502_REG1                data_written
+ Use:  Z502_REG1                data_written
  Z502_REG2                data_read
  Z502_REG3                address
  Z502_REG4                process_id
@@ -1603,8 +1601,7 @@ void test2e(void) {
     GET_PROCESS_ID("", &Z502_REG4, &Z502_REG9);
     printf("\n\nRelease %s:Test 2e: Pid %ld\n", CURRENT_REL, Z502_REG4);
 
-    for (Iterations = 0; Iterations < VIRTUAL_MEM_PGS; Iterations +=
-    STEP_SIZE) {
+    for (Iterations = 0; Iterations < VIRTUAL_MEM_PGS; Iterations += STEP_SIZE) {
         Z502_REG3 = PGSIZE * Iterations; // Generate address
         Z502_REG1 = Z502_REG3 + Z502_REG4; // Generate data 
         MEM_WRITE(Z502_REG3, &Z502_REG1); // Write the data
@@ -1638,8 +1635,7 @@ void test2e(void) {
             printf("AN ERROR HAS OCCURRED.\n");
 
     }    // End of for loop
-
-	TERMINATE_PROCESS(-2, &Z502_REG9);
+    TERMINATE_PROCESS(-2, &Z502_REG5);      // Added 12/1/2013
 }                                  // End of test2e    
 
 /**************************************************************************
@@ -1662,7 +1658,7 @@ void test2e(void) {
 #define                 LOGICAL_PAGES_TO_TOUCH       2 * PHYS_MEM_PGS
 
 typedef struct {
-	INT16 page_touched[LOOP_COUNT];
+    INT16 page_touched[LOOP_COUNT];   // Bugfix Rel 4.03  12/1/13
 } MEMORY_TOUCHED_RECORD;
 
 void test2f(void) {
@@ -1675,7 +1671,7 @@ void test2f(void) {
     printf("\n\nRelease %s:Test 2f: Pid %ld\n", CURRENT_REL, Z502_REG4);
 
     for (Iterations = 0; Iterations < NUMBER_OF_ITERATIONS; Iterations++) {
-        for (Index = 0; Index < LOGICAL_PAGES_TO_TOUCH; Index++)
+        for (Index = 0; Index < LOOP_COUNT; Index++)   // Bugfix Rel 4.03  12/1/13
             mtr->page_touched[Index] = 0;
         for (Loops = 0; Loops < LOOP_COUNT; Loops++) {
             // Get a random page number

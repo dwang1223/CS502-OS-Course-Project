@@ -62,7 +62,7 @@ void svc( SYSTEM_CALL_DATA * );
 void osInit( int , char **  );
 void frameInit( void );
 void diskInit(void);
-void disk_readOrWrite(long , long , char* , int, int );
+void disk_readOrWrite(long , long , char* , int );
 int check_disk_status(long);
 void append_currentPCB_to_diskQueue(long , long , char* , int);
 
@@ -101,7 +101,9 @@ int enablePrinter = 1;
 void schedule_printer()
 {
 	Queue queueCursor;
+	//DiskQueue diskQueueCursor;
 	int count = 0;
+	//int diskIndex = 1;
 	if(enablePrinter == 0)
 	{
 		return;
@@ -109,8 +111,8 @@ void schedule_printer()
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+11, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
 	printf("\n");
 	SP_print_header();
-	SP_setup_action( SP_ACTION_MODE, action );
-	SP_setup( SP_RUNNING_MODE, currentPCBNode->pid );
+	SP_setup_action(SP_ACTION_MODE, action);
+	SP_setup(SP_RUNNING_MODE, currentPCBNode->pid);
 
 	// print information of readyQueue, if the nodes in readyQueue are more than 10, just print the first 10
 	queueCursor = readyQueue;
@@ -118,7 +120,7 @@ void schedule_printer()
 	{
 		queueCursor = queueCursor->next;
 		count++;
-		SP_setup( SP_READY_MODE, queueCursor->node->pid );
+		SP_setup(SP_READY_MODE, queueCursor->node->pid);
 		if(count >= 10)
 		{
 			count = 0;
@@ -132,7 +134,7 @@ void schedule_printer()
 	{
 		queueCursor = queueCursor->next;
 		count++;
-		SP_setup( SP_WAITING_MODE, queueCursor->node->pid );
+		SP_setup(SP_WAITING_MODE, queueCursor->node->pid);
 		if(count >= 10)
 		{
 			count = 0;
@@ -154,7 +156,8 @@ void schedule_printer()
 			break;
 		}
 	}
-	CALL(SP_print_line());
+
+	SP_print_line();
 	// reset action to NULL
 	memset(action,'\0',8);
 	printf("\n");
@@ -176,7 +179,7 @@ void timer_queue_print()
 	//get current absolute time, and set wakeUpTime attribute for currentPCBNode
 	Queue timerQueueCursor = timerQueue;
 	//READ_MODIFY(MEMORY_INTERLOCK_BASE+1, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult2);
-	CALL(MEM_READ( Z502ClockStatus, &currentTime ));
+	MEM_READ( Z502ClockStatus, &currentTime );
 	printf("timerQueue(%d):\t",currentTime);
 	//printf("\ntimerQueue:\t");
 	while(timerQueueCursor->next != NULL)
@@ -301,14 +304,14 @@ void dispatcher()
 		currentPCBNode = NULL;
 		CALL(Z502Idle());
 	}
-	//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 
 	// reset current node with the first node in readyQueue
 	currentPCBNode = readyQueue->next->node;
 	//free the mode in readyQueue???
 	//pop up the first node from readyQueue
 	readyQueue->next = readyQueue->next->next;
-	//READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 	strncpy(action,"Dispath",8);
 	schedule_printer();
 	// switch to current node process
@@ -911,7 +914,7 @@ int check_disk_status(long diskID)
 	MEM_READ(Z502DiskStatus, &diskStatus);
 	return diskStatus;
 }
-void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite, int isCurrent)
+void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 {
 	INT32 diskStatus;
 	Queue tmpNode = (QUEUE*)malloc(sizeof(QUEUE));
@@ -919,7 +922,8 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite,
 
 	if (diskStatus == DEVICE_FREE)        // Disk hasn't been used - should be free
 	{
-		printf("Got expected result for Disk Status\n");
+		// TODO: It can be blank here
+		//printf("Got expected result for Disk Status\n");
 	}
 	else
 	{
@@ -936,25 +940,12 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite,
 	diskStatus = 0;                        // Must be set to 0
 	MEM_WRITE(Z502DiskStart, &diskStatus);
 	
-	//if (isCurrent == 1)
-	//{
-		// add current PCB node into readyQueue
-		tmpNode->node = currentPCBNode;
-		tmpNode->next = NULL;
-		new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
-		dispatcher();
-	//}
-
-	/*
-	MEM_WRITE(Z502DiskSetID, &diskID);
-	MEM_READ(Z502DiskStatus, &diskStatus);
-	while (diskStatus != DEVICE_FREE)
-	{
-		Z502Idle();
-		MEM_READ(Z502DiskStatus, &diskStatus);
-	}
-	*/
 	
+	// add current PCB node into readyQueue
+	tmpNode->node = currentPCBNode;
+	tmpNode->next = NULL;
+	new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
+	dispatcher();
 }
 
 
@@ -1043,9 +1034,6 @@ void    interrupt_handler( void ) {
 			break;
 
 	}
-
-	
-
 	MEM_WRITE(Z502InterruptClear, &Index );
 }                                       /* End of interrupt_handler */
 /************************************************************************
@@ -1067,15 +1055,14 @@ void    fault_handler( void )
     // Now read the status of this device
     MEM_READ(Z502InterruptStatus, &status );
 
-    printf( "Fault_handler: Found vector type %d with value %d\n",
-                        device_id, status );
+   // printf( "Fault_handler: Found vector type %d with value %d\n", device_id, status );
 	if (status >= 1024)
 	{
 		printf("\n@@@@@Page size overflow!\n\n");
 		Z502Halt();
 	}
 
-	if (Z502_PAGE_TBL_ADDR==NULL)
+	if (Z502_PAGE_TBL_ADDR == NULL)
 	{
 		Z502_PAGE_TBL_LENGTH = 1024;
 		Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
@@ -1306,14 +1293,14 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			disk_readOrWrite(	SystemCallData->Argument[0], 
 								SystemCallData->Argument[1], 
 								SystemCallData->Argument[2], 
-								DISK_READ, 1 );
+								DISK_READ );
 			break;
 	
 		case SYSNUM_DISK_WRITE:
 			disk_readOrWrite(	SystemCallData->Argument[0],
 								SystemCallData->Argument[1],
 								SystemCallData->Argument[2],
-								DISK_WRITE, 1);
+								DISK_WRITE );
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
@@ -1514,7 +1501,7 @@ void    osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
