@@ -66,6 +66,7 @@ void diskInit(void);
 void disk_readOrWrite(long , long , char* , int );
 int check_disk_status(long);
 void append_currentPCB_to_diskQueue(long , long , char* , int);
+void add_currentPCB_to_diskQueue_head(long , long , char* , int);
 void disk_queue_print();
 void shadowTableInit( void );
 
@@ -244,7 +245,7 @@ void disk_queue_print()
 		printf("\tDisk %d:\t", i);
 		while(diskQueueCursor != NULL)
 		{
-			printf("%ld  ", diskQueueCursor->PCB->pid);
+			printf("%ld(%d)  ", diskQueueCursor->PCB->pid, diskQueueCursor->alreadyGetDisk);
 			diskQueueCursor = diskQueueCursor->next;
 		}
 		printf("\n");
@@ -984,7 +985,7 @@ void append_currentPCB_to_diskQueue(long diskID, long sectorID, char* buffer, in
 	diskNode->diskID = diskID;
 	diskNode->sectorID = sectorID;
 	diskNode->readOrWrite = readOrWrite;
-
+	diskNode->alreadyGetDisk = 0;
 	diskNode->PCB = (PCB*)malloc(sizeof(PCB));
 	diskNode->PCB->pid = currentPCBNode->pid;
 	strcpy(diskNode->PCB->name, currentPCBNode->name);
@@ -1003,7 +1004,27 @@ void append_currentPCB_to_diskQueue(long diskID, long sectorID, char* buffer, in
 
 	diskQueueCursor->next = diskNode;
 }
+void add_currentPCB_to_diskQueue_head(long diskID, long sectorID, char* buffer, int readOrWrite)
+{
+	DiskQueue diskQueueCursor;
+	DiskQueue diskNode = (DiskNode *)malloc(sizeof(DiskNode));
 
+	diskNode->diskID = diskID;
+	diskNode->sectorID = sectorID;
+	diskNode->readOrWrite = readOrWrite;
+	diskNode->alreadyGetDisk = 1;
+
+	diskNode->PCB = (PCB*)malloc(sizeof(PCB));
+	diskNode->PCB->pid = currentPCBNode->pid;
+	strcpy(diskNode->PCB->name, currentPCBNode->name);
+	diskNode->PCB->context = currentPCBNode->context;
+	diskNode->PCB->prior = currentPCBNode->prior;
+	//diskNode->PCB->diskID = currentPCBNode->diskID;
+	//diskNode->PCB->sectorID = currentPCBNode->sectorID;
+	//strcpy(diskNode->buffer, buffer);
+	diskNode->next = diskQueue[(int)diskID]->next;
+	diskQueue[(int)diskID]->next = diskNode;
+}
 int check_disk_status(long diskID)
 {
 	INT32 diskStatus;
@@ -1024,12 +1045,8 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	}
 	else //DEVICE_IN_USE
 	{
-		/*while (diskStatus == DEVICE_IN_USE)
-		{*/
-			append_currentPCB_to_diskQueue(diskID, sectorID, buffer, readOrWrite);
-			dispatcher();
-			//diskStatus = check_disk_status(diskID);
-		//}
+		append_currentPCB_to_diskQueue(diskID, sectorID, buffer, readOrWrite);
+		dispatcher();
 	}
 
 	CALL(MEM_WRITE(Z502DiskSetID, &diskID));
@@ -1045,7 +1062,8 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	// add current PCB node into readyQueue
 	tmpNode->node = currentPCBNode;
 	tmpNode->next = NULL;
-	new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
+	add_currentPCB_to_diskQueue_head(diskID, sectorID, buffer, readOrWrite);
+	//new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
 	dispatcher();
 }
 
@@ -1060,7 +1078,7 @@ void interrupt_handler( void ) {
     INT32              status;
     INT32              Index = 0;
 	INT32			   sleepTime;
-	long			   diskID;
+	INT32			   diskID = 1;
 	Queue readyQueueCursor, timerQueueCursor, preTmpCursor, queueNode;
 	DiskQueue diskQueueCursor;
 	//INT32 currentTime;
@@ -1077,7 +1095,7 @@ void interrupt_handler( void ) {
 	switch (device_id)
 	{
 		case TIMER_INTERRUPT:
-			//READ_MODIFY(MEMORY_INTERLOCK_BASE+10, DO_LOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
+			READ_MODIFY(MEMORY_INTERLOCK_BASE+10, DO_LOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
 			//add the first node from timerQueue to the end of readyQueue
 			timerQueueCursor = timerQueue;
 			// get current time 
@@ -1112,32 +1130,51 @@ void interrupt_handler( void ) {
 				sleepTime = timerQueue->next->node->wakeUpTime - currentTime;
 				CALL(MEM_WRITE(Z502TimerStart, &sleepTime));
 			}
-			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 10, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
+			READ_MODIFY(MEMORY_INTERLOCK_BASE + 10, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
 			break;
 
 		default:
+			
 			if (device_id < DISK_INTERRUPT || device_id >= DISK_INTERRUPT + MAX_NUMBER_OF_DISKS)
 			{
 				break;
 			}
+			READ_MODIFY(MEMORY_INTERLOCK_BASE+10, DO_LOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
 			// make the first node in diskQueue be the current one
-			//diskID = device_id - 4;
-			for (diskID = 0; diskID < MAX_NUMBER_OF_DISKS; diskID++)
-			{
-				if (check_disk_status(diskID) == DEVICE_FREE && diskQueue[(int)diskID]->next != NULL)
+			diskID = device_id - 4;
+			//for (; diskID < MAX_NUMBER_OF_DISKS; diskID++)
+			//{
+				if (check_disk_status(diskID) == DEVICE_FREE && diskQueue[diskID]->next != NULL)
 				{
 				
 					diskQueueCursor = diskQueue[(int)diskID]->next;
-					//disk_readOrWrite(diskQueueCursor->diskID, diskQueueCursor->sectorID, diskQueueCursor->buffer, diskQueueCursor->readOrWrite, 0);
-					diskQueue[(int)diskID]->next = diskQueue[(int)diskID]->next->next;
+					while(diskQueueCursor != NULL && diskQueueCursor->alreadyGetDisk == 1 )
+					{
+						
+						queueNode = (QUEUE*)malloc(sizeof(QUEUE));
+						queueNode->node = diskQueueCursor->PCB;
+						queueNode->next = NULL;
+						new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
 
-					queueNode = (QUEUE*)malloc(sizeof(QUEUE));
-					queueNode->node = diskQueueCursor->PCB;
-					queueNode->next = NULL;
-					new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
-					//if (currentPCBNode == NULL) dispatcher();
+						diskQueueCursor = diskQueueCursor->next;
+						diskQueue[diskID]->next = diskQueue[diskID]->next->next;
+					}
+					
+					if (diskQueue[diskID]->next != NULL)
+					{
+						diskQueueCursor = diskQueue[diskID]->next;
+
+						queueNode = (QUEUE*)malloc(sizeof(QUEUE));
+						queueNode->node = diskQueueCursor->PCB;
+						queueNode->next = NULL;
+						new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
+						diskQueue[diskID]->next = diskQueue[diskID]->next->next;
+					}
+					
+
 				}
-			}
+			//}
+			READ_MODIFY(MEMORY_INTERLOCK_BASE + 10, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
 			break;
 
 	}
@@ -1166,87 +1203,89 @@ void fault_handler( void )
 
 	printf( "Fault_handler: Found vector type %d with value %d\n", device_id, status );
 
-	if (status >= 1024)
+	if(device_id != 4)
 	{
-		printf("\n@@@@@Page size overflow!\n\n");
-		Z502Halt();
-	}
-
-	if (Z502_PAGE_TBL_ADDR == NULL)
-	{
-		Z502_PAGE_TBL_LENGTH = 1024;
-		Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
-		for (i = 0; i < Z502_PAGE_TBL_LENGTH; i++)
+		if (status >= 1024)
 		{
-			Z502_PAGE_TBL_ADDR[i] = (UINT16)0;
+			printf("\n@@@@@Page size overflow!\n\n");
+			Z502Halt();
 		}
-	}
 
-	// judge whether it is fault caused by read
-	if(SHADOW_TBL[status].diskID > -1)
-	{
-		disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
-		MEM_WRITE(Z502InterruptClear, &Index );
-		return;
-	}
+		if (Z502_PAGE_TBL_ADDR == NULL)
+		{
+			Z502_PAGE_TBL_LENGTH = 1024;
+			Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
+			for (i = 0; i < Z502_PAGE_TBL_LENGTH; i++)
+			{
+				Z502_PAGE_TBL_ADDR[i] = (UINT16)0;
+			}
+		}
+
+		// judge whether it is fault caused by read
+		if(SHADOW_TBL[status].diskID > -1)
+		{
+			disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
+			MEM_WRITE(Z502InterruptClear, &Index );
+			return;
+		}
 
 
-	frameQueueCursor = frmQueue->next;
-
-	// can do some optimization here, as when frame is changed to be used status, it will never return to unused status
-	while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
-	{
-		frameQueueCursor = frameQueueCursor->next;
-	}
-	if (frameQueueCursor != NULL)
-	{
-		frameQueueCursor->node->isAvailable = 0; // indicate that this frame is used
-		frameQueueCursor->node->pageID = status;
-		frameQueueCursor->node->pid = currentPCBNode->pid;
-	}
-	else  // this means all frames have been used before
-	{
-		// TODO: replace algorithm
-		
 		frameQueueCursor = frmQueue->next;
+
+		// can do some optimization here, as when frame is changed to be used status, it will never return to unused status
 		while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
 		{
-			// if reference bit is not set, swap it here
-			// this is only for one round
-			if ( frameQueueCursor->node->pageID >= victim && (Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) == 0x2000)  // 0x2000 = 8192
-			{
-				// store the old info into disk
-				diskID = ((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
-				sectorID = (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
-				SHADOW_TBL[frameQueueCursor->node->pageID].diskID = diskID;
-				SHADOW_TBL[frameQueueCursor->node->pageID].sectorID = sectorID;
-				SHADOW_TBL[frameQueueCursor->node->pageID].frameID = frameQueueCursor->node->frameID;
-				Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] &= 0x7FFF; // set the valid bit to 0
-				disk_readOrWrite(diskID,sectorID,(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], DISK_WRITE);
-
-				Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
-				frameQueueCursor->node->pageID = status;
-				frameQueueCursor->node->pid = currentPCBNode->pid;
-				victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
-
-				break;
-			}
 			frameQueueCursor = frameQueueCursor->next;
 		}
-
-		// if every reference bit is set
-		if (frameQueueCursor == NULL)
+		if (frameQueueCursor != NULL)
 		{
-			frameQueueCursor = frmQueue->next; // get the first node in frmQueue
-			Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
+			frameQueueCursor->node->isAvailable = 0; // indicate that this frame is used
 			frameQueueCursor->node->pageID = status;
 			frameQueueCursor->node->pid = currentPCBNode->pid;
 		}
-	}
-
-	// make the page valid
-	Z502_PAGE_TBL_ADDR[status] = (UINT16)frameQueueCursor->node->frameID | 0x8000;
+		else  // this means all frames have been used before
+		{
+			// TODO: replace algorithm
 		
+			frameQueueCursor = frmQueue->next;
+			while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
+			{
+				// if reference bit is not set, swap it here
+				// this is only for one round
+				if ( frameQueueCursor->node->pageID >= victim && (Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) == 0x2000)  // 0x2000 = 8192
+				{
+					// store the old info into disk
+					diskID = ((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
+					sectorID = (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
+					SHADOW_TBL[frameQueueCursor->node->pageID].diskID = diskID;
+					SHADOW_TBL[frameQueueCursor->node->pageID].sectorID = sectorID;
+					SHADOW_TBL[frameQueueCursor->node->pageID].frameID = frameQueueCursor->node->frameID;
+					Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] &= 0x7FFF; // set the valid bit to 0
+					disk_readOrWrite(diskID,sectorID,(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], DISK_WRITE);
+
+					Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
+					frameQueueCursor->node->pageID = status;
+					frameQueueCursor->node->pid = currentPCBNode->pid;
+					victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
+
+					break;
+				}
+				frameQueueCursor = frameQueueCursor->next;
+			}
+
+			// if every reference bit is set
+			if (frameQueueCursor == NULL)
+			{
+				frameQueueCursor = frmQueue->next; // get the first node in frmQueue
+				Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
+				frameQueueCursor->node->pageID = status;
+				frameQueueCursor->node->pid = currentPCBNode->pid;
+			}
+		}
+
+		// make the page valid
+		Z502_PAGE_TBL_ADDR[status] = (UINT16)frameQueueCursor->node->frameID | 0x8000;
+	}
 	//if(device_id == 4 && status == 0)
 	//{
 	//	printf("\n@@@@@Illegal hardware instruction\n\n");
@@ -1687,7 +1726,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
