@@ -36,11 +36,12 @@
  3.60  August    2012: Used student supplied code to add support
  for Mac machines
  4.00  May       2013: Major revision to the way the simulator works.
- It now runs off of multiple threads, and those
- threads start in the test code avoiding many
- many hacks.
+                       It now runs off of multiple threads, and those
+                       threads start in the test code avoiding many
+                       many hacks.
  4.02 December   2013: STAT_VECTOR not thread safe.  Defined a method that
-                 uses thread info to keep things sorted out.
+                       uses thread info to keep things sorted out.
+ 4.03 December   2013: Store Z502_MODE on context save
  ************************************************************************/
 
 /************************************************************************
@@ -51,7 +52,7 @@
 
  ************************************************************************/
 
-#define                   HARDWARE_VERSION  "4.02"
+#define                   HARDWARE_VERSION  "4.03"
 
 // By uncommenting these, we can get traces of what's happening in
 // the hardware.
@@ -1293,6 +1294,7 @@ void Z502SwitchContext(BOOL kill_or_save, void **IncomingContextPointer) {
 
         if (kill_or_save == SWITCH_CONTEXT_SAVE_MODE) {
             //        curr_ptr->call_type = SYS_CALL_CALL_TYPE;
+            curr_ptr->program_mode = Z502_MODE; // Added Bugfix 12/8/13
             curr_ptr->reg1 = Z502_REG1;
             curr_ptr->reg2 = Z502_REG2;
             curr_ptr->reg3 = Z502_REG3;
