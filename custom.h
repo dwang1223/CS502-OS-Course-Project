@@ -84,6 +84,7 @@ typedef struct disk
 	long diskID;    // diskID may not be used here
 	long sectorID;
 	PCB *PCB;
+	int alreadyGetDisk;
 	//char buffer[PGSIZE];
 	struct disk *next;
 } *DiskQueue, DiskNode;
