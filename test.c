@@ -69,7 +69,6 @@ void   ErrorExpected(INT32, char[]);
 void   SuccessExpected(INT32, char[]);
 void   get_skewed_random_number( long *, long );
 void   myGirl( void );
-
 static int totalWeight = 0;
 /**************************************************************************
 
@@ -1601,7 +1600,8 @@ void test2e(void) {
     GET_PROCESS_ID("", &Z502_REG4, &Z502_REG9);
     printf("\n\nRelease %s:Test 2e: Pid %ld\n", CURRENT_REL, Z502_REG4);
 
-    for (Iterations = 0; Iterations < VIRTUAL_MEM_PGS; Iterations += STEP_SIZE) {
+    for (Iterations = 0; Iterations < VIRTUAL_MEM_PGS; Iterations +=
+    STEP_SIZE) {
         Z502_REG3 = PGSIZE * Iterations; // Generate address
         Z502_REG1 = Z502_REG3 + Z502_REG4; // Generate data 
         MEM_WRITE(Z502_REG3, &Z502_REG1); // Write the data
@@ -1621,7 +1621,8 @@ void test2e(void) {
 
     // Now read back the data we've written and paged
     printf("Reading back data: test 2e, PID %ld.\n", Z502_REG4);
-    for (Iterations = 0; Iterations < VIRTUAL_MEM_PGS; Iterations += STEP_SIZE) {
+    for (Iterations = 0; Iterations < VIRTUAL_MEM_PGS; Iterations +=
+    STEP_SIZE) {
 
         Z502_REG3 = PGSIZE * Iterations; // Generate address
         Z502_REG1 = Z502_REG3 + Z502_REG4; // Data expected

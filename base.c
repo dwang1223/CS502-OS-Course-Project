@@ -1157,18 +1157,32 @@ void    fault_handler( void )
 	{
 		// TODO: replace algrithm
 
-		for (i = 0; i < Z502_PAGE_TBL_LENGTH; i++)
+		frameQueueCursor = frmQueue->next;
+		while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
 		{
-			if ((Z502_PAGE_TBL_ADDR[i] & 0x2000) == 0x2000)  // 0x2000 = 8192
+			// if referrence bit is not set, swap it here
+			if ((Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) == 0x2000)  // 0x2000 = 8192
 			{
-				//printf("#I am Here!\n");
+				Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
+				frameQueueCursor->node->pageID = status;
+				frameQueueCursor->node->pid = currentPCBNode->pid;
 				break;
 			}
+			frameQueueCursor = frameQueueCursor->next;
+		}
+
+		// if every referrence bit is set
+		if (frameQueueCursor == NULL)
+		{
+			frameQueueCursor = frmQueue->next; // get the first node in frmQueue
+			Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
+			frameQueueCursor->node->pageID = status;
+			frameQueueCursor->node->pid = currentPCBNode->pid;
 		}
 	}
 
 	// make the page valid
-	Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] = (UINT16)frameQueueCursor->node->frameID | 0x8000;
+	Z502_PAGE_TBL_ADDR[status] = (UINT16)frameQueueCursor->node->frameID | 0x8000;
 		
 	//if(device_id == 4 && status == 0)
 	//{
@@ -1588,7 +1602,7 @@ void    osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
