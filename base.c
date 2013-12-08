@@ -957,11 +957,18 @@ void append_currentPCB_to_diskQueue(long diskID, long sectorID, char* buffer, in
 {
 	DiskQueue diskQueueCursor;
 	DiskQueue diskNode = (DiskNode *)malloc(sizeof(DiskNode));
+
 	diskNode->diskID = diskID;
 	diskNode->sectorID = sectorID;
 	diskNode->readOrWrite = readOrWrite;
-	diskNode->PCB = currentPCBNode;
-	strcpy(diskNode->buffer, buffer);
+
+	diskNode->PCB = (PCB*)malloc(sizeof(PCB));
+	diskNode->PCB->pid = currentPCBNode->pid;
+	strcpy(diskNode->PCB->name, currentPCBNode->name);
+	diskNode->PCB->context = currentPCBNode->context;
+	diskNode->PCB->prior = currentPCBNode->prior;
+
+	//strcpy(diskNode->buffer, buffer);
 	diskNode->next = NULL;
 
 	diskQueueCursor = diskQueue[(int)diskID];
@@ -1020,7 +1027,7 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
         When the Z502 gets a hardware interrupt, it transfers control to
         this routine in the OS.
 ************************************************************************/
-void    interrupt_handler( void ) {
+void interrupt_handler( void ) {
     INT32              device_id;
     INT32              status;
     INT32              Index = 0;
@@ -1081,6 +1088,10 @@ void    interrupt_handler( void ) {
 			break;
 
 		default:
+			if (device_id < DISK_INTERRUPT || device_id >= DISK_INTERRUPT + MAX_NUMBER_OF_DISKS)
+			{
+				break;
+			}
 			// make the first node in diskQueue be the current one
 			diskID = device_id - 4;
 			
@@ -1107,7 +1118,7 @@ void    interrupt_handler( void ) {
         The beginning of the OS502.  Used to receive hardware faults.
 ************************************************************************/
 
-void    fault_handler( void )
+void fault_handler( void )
 {
     INT32       device_id;
     INT32       status;
@@ -1122,7 +1133,7 @@ void    fault_handler( void )
     // Now read the status of this device
     MEM_READ(Z502InterruptStatus, &status );
 
-   // printf( "Fault_handler: Found vector type %d with value %d\n", device_id, status );
+	printf( "Fault_handler: Found vector type %d with value %d\n", device_id, status );
 
 	if (status >= 1024)
 	{
@@ -1205,7 +1216,7 @@ void    fault_handler( void )
         with the amount of data.
 ************************************************************************/
 
-void    svc( SYSTEM_CALL_DATA *SystemCallData ) 
+void svc( SYSTEM_CALL_DATA *SystemCallData ) 
 {
     short               call_type;
     static short        do_print = 10;
@@ -1221,6 +1232,10 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 	long				actual_source_pid;
 	static int			msgCount = 0;
 	INT32				diskStatus;
+	long				diskID;
+	long				sectorID;
+	char				buffer[PGSIZE];
+
     call_type = (short)SystemCallData->SystemCallNumber;
     if ( do_print > 0 ) 
 	{
@@ -1391,16 +1406,24 @@ void    svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
 		
 		case SYSNUM_DISK_READ:
-			disk_readOrWrite(	SystemCallData->Argument[0], 
-								SystemCallData->Argument[1], 
-								SystemCallData->Argument[2], 
+			diskID	 = SystemCallData->Argument[0];
+			sectorID = SystemCallData->Argument[1];
+			disk_readOrWrite(	diskID,
+								sectorID,
+								buffer, 
 								DISK_READ );
+
+			strncpy(SystemCallData->Argument[2], buffer, PGSIZE);
 			break;
 	
 		case SYSNUM_DISK_WRITE:
-			disk_readOrWrite(	SystemCallData->Argument[0],
-								SystemCallData->Argument[1],
-								SystemCallData->Argument[2],
+			diskID = SystemCallData->Argument[0];
+			sectorID = SystemCallData->Argument[1];
+			strncpy(buffer, SystemCallData->Argument[2], PGSIZE);
+
+			disk_readOrWrite(	diskID,
+								sectorID,
+								buffer,
 								DISK_WRITE );
 			break;
         // terminate system call
