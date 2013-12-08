@@ -38,6 +38,8 @@ typedef struct
 	char name[140];
 	void *context;
 	int prior;
+	long diskID;
+	long sectorID;
 	INT32	wakeUpTime;
 } PCB;
 

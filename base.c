@@ -967,7 +967,8 @@ void append_currentPCB_to_diskQueue(long diskID, long sectorID, char* buffer, in
 	strcpy(diskNode->PCB->name, currentPCBNode->name);
 	diskNode->PCB->context = currentPCBNode->context;
 	diskNode->PCB->prior = currentPCBNode->prior;
-
+	//diskNode->PCB->diskID = currentPCBNode->diskID;
+	//diskNode->PCB->sectorID = currentPCBNode->sectorID;
 	//strcpy(diskNode->buffer, buffer);
 	diskNode->next = NULL;
 
@@ -1406,14 +1407,14 @@ void svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
 		
 		case SYSNUM_DISK_READ:
-			diskID	 = SystemCallData->Argument[0];
+			diskID = SystemCallData->Argument[0];
 			sectorID = SystemCallData->Argument[1];
 			disk_readOrWrite(	diskID,
 								sectorID,
-								buffer, 
+								SystemCallData->Argument[2],
 								DISK_READ );
 
-			strncpy(SystemCallData->Argument[2], buffer, PGSIZE);
+			//strncpy(SystemCallData->Argument[2], buffer, PGSIZE);
 			break;
 	
 		case SYSNUM_DISK_WRITE:
@@ -1423,7 +1424,7 @@ void svc( SYSTEM_CALL_DATA *SystemCallData )
 
 			disk_readOrWrite(	diskID,
 								sectorID,
-								buffer,
+								SystemCallData->Argument[2],
 								DISK_WRITE );
 			break;
         // terminate system call
@@ -1501,7 +1502,7 @@ void diskInit(void)
 
 }
 
-void    osInit( int argc, char *argv[]  ) {
+void osInit( int argc, char *argv[]  ) {
     void                *next_context;
     INT32               i;
 
