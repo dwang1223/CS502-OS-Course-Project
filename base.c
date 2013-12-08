@@ -66,8 +66,9 @@ void diskInit(void);
 void disk_readOrWrite(long , long , char* , int );
 int check_disk_status(long);
 void append_currentPCB_to_diskQueue(long , long , char* , int);
+void disk_queue_print();
 
-// These loacations are global and define information about the page table
+// These locations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
 extern INT16         Z502_PAGE_TBL_LENGTH;
 extern void          *TO_VECTOR [];
@@ -167,7 +168,6 @@ void memory_printer()
 void schedule_printer()
 {
 	Queue queueCursor;
-	//DiskQueue diskQueueCursor;
 	int count = 0;
 	//int diskIndex = 1;
 	if(enablePrinter == 0)
@@ -227,7 +227,26 @@ void schedule_printer()
 	// reset action to NULL
 	memset(action,'\0',8);
 	printf("\n");
+	disk_queue_print();
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+11, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
+}
+void disk_queue_print()
+{
+	DiskQueue diskQueueCursor;
+	int i = 1;
+	for(i = 1; i < 4; i++)
+	{
+		diskQueueCursor = diskQueue[i]->next;
+		printf("\tDisk %d:\t", i);
+		while(diskQueueCursor != NULL)
+		{
+			printf("%ld  ", diskQueueCursor->PCB->pid);
+			diskQueueCursor = diskQueueCursor->next;
+		}
+		printf("\n");
+
+	}
+	printf("\n");
 }
 void ready_queue_print()
 {
@@ -935,7 +954,7 @@ int msg_receiver(long sid, char *msg, int msgLength, long *actualLength, long *a
 }
 void append_to_frameQueue(FRM *frmNode)
 {
-	Queue frameQueueCursor;
+	FrmQueue frameQueueCursor;
 	FrmQueue frmQueueNode;
 
 	// get the end of frmQueue
@@ -1171,7 +1190,7 @@ void fault_handler( void )
 	}
 	else  // this means all frames have been used before
 	{
-		// TODO: replace algrithm
+		// TODO: replace algorithm
 
 		frameQueueCursor = frmQueue->next;
 		while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
@@ -1630,7 +1649,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
