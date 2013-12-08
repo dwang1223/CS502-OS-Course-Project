@@ -21,7 +21,7 @@
         3.11 August  2004: Support for OS level locking
 		4.0  July    2013: Major portions rewritten to support multiple threads
 
-		Oct. 2013 Implemeted by Hao        hzhou@wpi.edu
+		DEC. 2013 Implemented by Hao        hzhou@wpi.edu
 ************************************************************************/
 
 #include			 "malloc.h"
@@ -67,6 +67,7 @@ void disk_readOrWrite(long , long , char* , int );
 int check_disk_status(long);
 void append_currentPCB_to_diskQueue(long , long , char* , int);
 void disk_queue_print();
+void shadowTableInit( void );
 
 // These locations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -99,6 +100,8 @@ int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
 int enablePrinter = 1;
+static INT32 victim = 0;
+shadowTable SHADOW_TBL[1024];
 
 void memory_printer()
 {
@@ -1196,11 +1199,17 @@ void fault_handler( void )
 		while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
 		{
 			// if reference bit is not set, swap it here
-			if ((Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) == 0x2000)  // 0x2000 = 8192
+			// this is only for one round
+			if ( frameQueueCursor->node->pageID >= victim && (Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) == 0x2000)  // 0x2000 = 8192
 			{
+				
 				Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
 				frameQueueCursor->node->pageID = status;
 				frameQueueCursor->node->pid = currentPCBNode->pid;
+				victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
+				// write this data into disk
+
+
 				break;
 			}
 			frameQueueCursor = frameQueueCursor->next;
@@ -1524,7 +1533,16 @@ void diskInit(void)
 	}
 
 }
+void shadowTableInit( void )
+{
+	int i = 0;
+	for(i = 0; i < 1024; i++)
+	{
+		SHADOW_TBL[i].sectorID = -1;
+		SHADOW_TBL[i].diskID = -1;
+	}
 
+}
 void osInit( int argc, char *argv[]  ) {
     void                *next_context;
     INT32               i;
@@ -1551,6 +1569,7 @@ void osInit( int argc, char *argv[]  ) {
 
 	frameInit();
 	diskInit();
+	shadowTableInit();
     /* Demonstrates how calling arguments are passed thru to here       */
 
     printf( "Program called with %d arguments:", argc );

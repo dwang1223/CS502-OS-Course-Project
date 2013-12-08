@@ -87,3 +87,9 @@ typedef struct disk
 	//char buffer[PGSIZE];
 	struct disk *next;
 } *DiskQueue, DiskNode;
+
+typedef struct 
+{
+	long diskID;    
+	long sectorID;
+} shadowTable;
