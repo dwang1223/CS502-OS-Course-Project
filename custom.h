@@ -92,4 +92,5 @@ typedef struct
 {
 	long diskID;    
 	long sectorID;
+	int frameID;
 } shadowTable;

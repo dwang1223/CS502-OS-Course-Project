@@ -1121,20 +1121,22 @@ void interrupt_handler( void ) {
 				break;
 			}
 			// make the first node in diskQueue be the current one
-			diskID = device_id - 4;
-			
-			if (check_disk_status(diskID) == DEVICE_FREE && diskQueue[(int)diskID]->next != NULL)
+			//diskID = device_id - 4;
+			for (diskID = 0; diskID < MAX_NUMBER_OF_DISKS; diskID++)
 			{
+				if (check_disk_status(diskID) == DEVICE_FREE && diskQueue[(int)diskID]->next != NULL)
+				{
 				
-				diskQueueCursor = diskQueue[(int)diskID]->next;
-				//disk_readOrWrite(diskQueueCursor->diskID, diskQueueCursor->sectorID, diskQueueCursor->buffer, diskQueueCursor->readOrWrite, 0);
-				diskQueue[(int)diskID]->next = diskQueue[(int)diskID]->next->next;
+					diskQueueCursor = diskQueue[(int)diskID]->next;
+					//disk_readOrWrite(diskQueueCursor->diskID, diskQueueCursor->sectorID, diskQueueCursor->buffer, diskQueueCursor->readOrWrite, 0);
+					diskQueue[(int)diskID]->next = diskQueue[(int)diskID]->next->next;
 
-				queueNode = (QUEUE*)malloc(sizeof(QUEUE));
-				queueNode->node = diskQueueCursor->PCB;
-				queueNode->next = NULL;
-				new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
-				//if (currentPCBNode == NULL) dispatcher();
+					queueNode = (QUEUE*)malloc(sizeof(QUEUE));
+					queueNode->node = diskQueueCursor->PCB;
+					queueNode->next = NULL;
+					new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
+					//if (currentPCBNode == NULL) dispatcher();
+				}
 			}
 			break;
 
@@ -1180,6 +1182,15 @@ void fault_handler( void )
 		}
 	}
 
+	// judge whether it is fault caused by read
+	if(SHADOW_TBL[status].diskID > -1)
+	{
+		disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
+		MEM_WRITE(Z502InterruptClear, &Index );
+		return;
+	}
+
+
 	frameQueueCursor = frmQueue->next;
 
 	// can do some optimization here, as when frame is changed to be used status, it will never return to unused status
@@ -1205,8 +1216,12 @@ void fault_handler( void )
 			if ( frameQueueCursor->node->pageID >= victim && (Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) == 0x2000)  // 0x2000 = 8192
 			{
 				// store the old info into disk
-				diskID = (frameQueueCursor->node->pageID & 0x0018) >> 3;
+				diskID = ((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
 				sectorID = (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
+				SHADOW_TBL[frameQueueCursor->node->pageID].diskID = diskID;
+				SHADOW_TBL[frameQueueCursor->node->pageID].sectorID = sectorID;
+				SHADOW_TBL[frameQueueCursor->node->pageID].frameID = frameQueueCursor->node->frameID;
+				Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] &= 0x7FFF; // set the valid bit to 0
 				disk_readOrWrite(diskID,sectorID,(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], DISK_WRITE);
 
 				Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
