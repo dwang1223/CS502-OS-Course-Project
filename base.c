@@ -354,7 +354,7 @@ void dispatcher()
 	// if no node in readyQueue now, just do Idle() to wait for sleeping node wake up by interruption 
 	while(readyQueue->next == NULL)
 	{
-		// if no process in the whole program, just halt, as it meaningfulless to wait to forever
+		// if no process in the whole program, just halt, as it meaningless to wait to forever
 		if(totalQueue->next == NULL)
 		{
 			Z502Halt();
@@ -377,7 +377,7 @@ void dispatcher()
 	//free the mode in readyQueue???
 	//pop up the first node from readyQueue
 	readyQueue->next = readyQueue->next->next;
-	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
+	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 	strncpy(action,"Dispath",8);
 	schedule_printer();
 	// switch to current node process
@@ -412,7 +412,7 @@ long get_pid_by_name(char *name)
 PCB * PCB_item_generator(SYSTEM_CALL_DATA *SystemCallData)
 {
 	void *next_context;
-	// generate a PCB node with the infomation we know
+	// generate a PCB node with the information we know
 	pcb = (PCB*)malloc(sizeof(PCB));
 	strcpy(pcb->name, (char*)SystemCallData->Argument[0]);
 	Z502MakeContext( &next_context, (void *)SystemCallData->Argument[1], USER_MODE );
@@ -1001,12 +1001,12 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	}
 	else //DEVICE_IN_USE
 	{
-		while (diskStatus == DEVICE_IN_USE)
-		{
+		/*while (diskStatus == DEVICE_IN_USE)
+		{*/
 			append_currentPCB_to_diskQueue(diskID, sectorID, buffer, readOrWrite);
 			dispatcher();
-			diskStatus = check_disk_status(diskID);
-		}
+			//diskStatus = check_disk_status(diskID);
+		//}
 	}
 
 	MEM_WRITE(Z502DiskSetID, &diskID);
@@ -1176,7 +1176,7 @@ void fault_handler( void )
 		frameQueueCursor = frmQueue->next;
 		while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
 		{
-			// if referrence bit is not set, swap it here
+			// if reference bit is not set, swap it here
 			if ((Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) == 0x2000)  // 0x2000 = 8192
 			{
 				Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
@@ -1187,7 +1187,7 @@ void fault_handler( void )
 			frameQueueCursor = frameQueueCursor->next;
 		}
 
-		// if every referrence bit is set
+		// if every reference bit is set
 		if (frameQueueCursor == NULL)
 		{
 			frameQueueCursor = frmQueue->next; // get the first node in frmQueue
@@ -1415,20 +1415,20 @@ void svc( SYSTEM_CALL_DATA *SystemCallData )
 			sectorID = SystemCallData->Argument[1];
 			disk_readOrWrite(	diskID,
 								sectorID,
-								SystemCallData->Argument[2],
+								buffer,
 								DISK_READ );
 
-			//strncpy(SystemCallData->Argument[2], buffer, PGSIZE);
+			memcpy (SystemCallData->Argument[2], buffer, PGSIZE);
 			break;
 	
 		case SYSNUM_DISK_WRITE:
 			diskID = SystemCallData->Argument[0];
 			sectorID = SystemCallData->Argument[1];
-			strncpy(buffer, SystemCallData->Argument[2], PGSIZE);
+			memcpy(buffer, SystemCallData->Argument[2], PGSIZE);
 
 			disk_readOrWrite(	diskID,
 								sectorID,
-								SystemCallData->Argument[2],
+								buffer,
 								DISK_WRITE );
 			break;
         // terminate system call
