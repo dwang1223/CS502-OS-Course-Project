@@ -999,10 +999,14 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 		// TODO: It can be blank here
 		//printf("Got expected result for Disk Status\n");
 	}
-	else
+	else //DEVICE_IN_USE
 	{
-		append_currentPCB_to_diskQueue(diskID, sectorID, buffer, readOrWrite);
-		dispatcher();
+		while (diskStatus == DEVICE_IN_USE)
+		{
+			append_currentPCB_to_diskQueue(diskID, sectorID, buffer, readOrWrite);
+			dispatcher();
+			diskStatus = check_disk_status(diskID);
+		}
 	}
 
 	MEM_WRITE(Z502DiskSetID, &diskID);
