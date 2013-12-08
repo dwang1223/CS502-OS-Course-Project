@@ -1028,14 +1028,14 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 		//}
 	}
 
-	MEM_WRITE(Z502DiskSetID, &diskID);
-	MEM_WRITE(Z502DiskSetSector, &sectorID);
-	MEM_WRITE(Z502DiskSetBuffer, (INT32 *)buffer);
+	CALL(MEM_WRITE(Z502DiskSetID, &diskID));
+	CALL(MEM_WRITE(Z502DiskSetSector, &sectorID));
+	CALL(MEM_WRITE(Z502DiskSetBuffer, (INT32 *)buffer));
 
 	diskStatus = readOrWrite;                     
-	MEM_WRITE(Z502DiskSetAction, &diskStatus);
+	CALL(MEM_WRITE(Z502DiskSetAction, &diskStatus));
 	diskStatus = 0;                        // Must be set to 0
-	MEM_WRITE(Z502DiskStart, &diskStatus);
+	CALL(MEM_WRITE(Z502DiskStart, &diskStatus));
 	
 	
 	// add current PCB node into readyQueue
@@ -1191,7 +1191,7 @@ void fault_handler( void )
 	else  // this means all frames have been used before
 	{
 		// TODO: replace algorithm
-
+		
 		frameQueueCursor = frmQueue->next;
 		while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
 		{
