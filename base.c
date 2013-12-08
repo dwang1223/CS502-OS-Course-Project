@@ -72,6 +72,7 @@ void shadowTableInit( void );
 // These locations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
 extern INT16         Z502_PAGE_TBL_LENGTH;
+extern char			 MEMORY[PHYS_MEM_PGS * PGSIZE ];
 extern void          *TO_VECTOR [];
 char                 *call_names[] = { "mem_read ", "mem_write",
                             "read_mod ", "get_time ", "sleep    ",
@@ -1152,7 +1153,8 @@ void fault_handler( void )
     INT32       Index = 0;
 	INT32		i = 0;
 	FrmQueue	frameQueueCursor;
-
+	long		diskID;
+	long		sectorID;
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -1202,13 +1204,15 @@ void fault_handler( void )
 			// this is only for one round
 			if ( frameQueueCursor->node->pageID >= victim && (Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) == 0x2000)  // 0x2000 = 8192
 			{
-				
+				// store the old info into disk
+				diskID = (frameQueueCursor->node->pageID & 0x0018) >> 3;
+				sectorID = (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
+				disk_readOrWrite(diskID,sectorID,(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], DISK_WRITE);
+
 				Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
 				frameQueueCursor->node->pageID = status;
 				frameQueueCursor->node->pid = currentPCBNode->pid;
 				victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
-				// write this data into disk
-
 
 				break;
 			}
