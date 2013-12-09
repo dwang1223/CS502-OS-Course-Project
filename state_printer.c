@@ -190,7 +190,7 @@ void    SP_print_line( void )
     if ( SP_time == -1 )
     {
         MEM_READ( Z502ClockStatus, &current_time );
-        sprintf( output_line, "%5d", current_time % 10000 );
+        sprintf( output_line, "%5d", current_time % 100000 );
     }
 
     sprintf( temp, " %3d ", SP_target_pid );            /* Target Pid   */

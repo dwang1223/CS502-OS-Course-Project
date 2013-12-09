@@ -69,6 +69,7 @@ void append_currentPCB_to_diskQueue(long , long , char* , int);
 void add_currentPCB_to_diskQueue_head(long , long , char* , int);
 void disk_queue_print();
 void shadowTableInit( void );
+void disk_node_transfer( INT32 );
 
 // These locations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -183,7 +184,16 @@ void schedule_printer()
 	printf("\n");
 	SP_print_header();
 	SP_setup_action(SP_ACTION_MODE, action);
-	SP_setup(SP_RUNNING_MODE, currentPCBNode->pid);
+
+	if(currentPCBNode != NULL)
+	{
+		SP_setup(SP_RUNNING_MODE, currentPCBNode->pid);
+	}
+	else
+	{
+		SP_setup(SP_RUNNING_MODE, 99);
+	}
+	
 
 	// print information of readyQueue, if the nodes in readyQueue are more than 10, just print the first 10
 	queueCursor = readyQueue;
@@ -393,6 +403,11 @@ void dispatcher()
 		}
 		currentPCBNode = NULL;
 		CALL(Z502Idle());
+		// Test use: print current time
+		/*MEM_READ( Z502ClockStatus, &currentTime );
+		printf("time: %5d\n", currentTime % 100000 );*/
+		strncpy(action,"IDEL",8);
+		schedule_printer();
 	}
 	READ_MODIFY(MEMORY_INTERLOCK_BASE, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResult);
 
@@ -1060,13 +1075,43 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	
 	
 	// add current PCB node into readyQueue
-	tmpNode->node = currentPCBNode;
-	tmpNode->next = NULL;
+	//tmpNode->node = currentPCBNode;
+	//tmpNode->next = NULL;
 	add_currentPCB_to_diskQueue_head(diskID, sectorID, buffer, readOrWrite);
 	//new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
 	dispatcher();
 }
 
+void disk_node_transfer( INT32 diskID)
+{
+	Queue queueNode;
+	DiskQueue diskQueueCursor;
+	if (check_disk_status(diskID) == DEVICE_FREE && diskQueue[diskID]->next != NULL)
+	{
+		diskQueueCursor = diskQueue[diskID]->next;
+		while(diskQueueCursor != NULL && diskQueueCursor->alreadyGetDisk == 1 )
+		{
+			queueNode = (QUEUE*)malloc(sizeof(QUEUE));
+			queueNode->node = diskQueueCursor->PCB;
+			queueNode->next = NULL;
+			new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
+
+			diskQueueCursor = diskQueueCursor->next;
+			diskQueue[diskID]->next = diskQueue[diskID]->next->next;
+		}
+
+		if (diskQueue[diskID]->next != NULL)
+		{
+			diskQueueCursor = diskQueue[diskID]->next;
+
+			queueNode = (QUEUE*)malloc(sizeof(QUEUE));
+			queueNode->node = diskQueueCursor->PCB;
+			queueNode->next = NULL;
+			new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
+			diskQueue[diskID]->next = diskQueue[diskID]->next->next;
+		}
+	}
+}
 
 /************************************************************************
     INTERRUPT_HANDLER
@@ -1079,6 +1124,7 @@ void interrupt_handler( void ) {
     INT32              Index = 0;
 	INT32			   sleepTime;
 	INT32			   diskID = 1;
+	INT32			   i = 1;
 	Queue readyQueueCursor, timerQueueCursor, preTmpCursor, queueNode;
 	DiskQueue diskQueueCursor;
 	//INT32 currentTime;
@@ -1139,42 +1185,25 @@ void interrupt_handler( void ) {
 			{
 				break;
 			}
-			READ_MODIFY(MEMORY_INTERLOCK_BASE+10, DO_LOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
+			READ_MODIFY(MEMORY_INTERLOCK_BASE+15, DO_LOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
 			// make the first node in diskQueue be the current one
 			diskID = device_id - 4;
-			//for (; diskID < MAX_NUMBER_OF_DISKS; diskID++)
-			//{
-				if (check_disk_status(diskID) == DEVICE_FREE && diskQueue[diskID]->next != NULL)
+			disk_node_transfer(diskID);
+			//disk_node_transfer(1);
+			//disk_node_transfer(2);
+			//disk_node_transfer(3);
+			/*
+			for(i = 1; i < MAX_NUMBER_OF_DISKS; i++ )
+			{
+				if(i != diskID)
 				{
-				
-					diskQueueCursor = diskQueue[(int)diskID]->next;
-					while(diskQueueCursor != NULL && diskQueueCursor->alreadyGetDisk == 1 )
-					{
-						
-						queueNode = (QUEUE*)malloc(sizeof(QUEUE));
-						queueNode->node = diskQueueCursor->PCB;
-						queueNode->next = NULL;
-						new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
-
-						diskQueueCursor = diskQueueCursor->next;
-						diskQueue[diskID]->next = diskQueue[diskID]->next->next;
-					}
-					
-					if (diskQueue[diskID]->next != NULL)
-					{
-						diskQueueCursor = diskQueue[diskID]->next;
-
-						queueNode = (QUEUE*)malloc(sizeof(QUEUE));
-						queueNode->node = diskQueueCursor->PCB;
-						queueNode->next = NULL;
-						new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
-						diskQueue[diskID]->next = diskQueue[diskID]->next->next;
-					}
-					
-
+					disk_node_transfer(i);
 				}
-			//}
-			READ_MODIFY(MEMORY_INTERLOCK_BASE + 10, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
+				
+			}
+			*/
+			
+			READ_MODIFY(MEMORY_INTERLOCK_BASE + 15, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
 			break;
 
 	}
