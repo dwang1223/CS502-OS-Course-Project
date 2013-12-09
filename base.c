@@ -397,8 +397,8 @@ void dispatcher()
 		{
 			currentPCBNode = suspendQueue->next->node;
 			suspendQueue->next = suspendQueue->next->next;
-			strncpy(action,"Dispath",8);
-			schedule_printer();
+			/*strncpy(action,"Dispath",8);
+			schedule_printer();*/
 			return;
 		}
 		currentPCBNode = NULL;
@@ -1060,8 +1060,13 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	}
 	else //DEVICE_IN_USE
 	{
-		append_currentPCB_to_diskQueue(diskID, sectorID, buffer, readOrWrite);
-		dispatcher();
+		while(diskStatus == DEVICE_IN_USE)
+		{
+			append_currentPCB_to_diskQueue(diskID, sectorID, buffer, readOrWrite);
+			dispatcher();
+			diskStatus = check_disk_status(diskID);
+		}
+		
 	}
 
 	CALL(MEM_WRITE(Z502DiskSetID, &diskID));
@@ -1073,20 +1078,16 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	diskStatus = 0;                        // Must be set to 0
 	CALL(MEM_WRITE(Z502DiskStart, &diskStatus));
 	
-	
-	// add current PCB node into readyQueue
-	//tmpNode->node = currentPCBNode;
-	//tmpNode->next = NULL;
 	add_currentPCB_to_diskQueue_head(diskID, sectorID, buffer, readOrWrite);
-	//new_node_add_to_readyQueue(tmpNode, ADD_BY_PRIOR);
 	dispatcher();
 }
 
-void disk_node_transfer( INT32 diskID)
+void disk_node_transfer( INT32 diskID )
 {
 	Queue queueNode;
 	DiskQueue diskQueueCursor;
-	if (check_disk_status(diskID) == DEVICE_FREE && diskQueue[diskID]->next != NULL)
+	READ_MODIFY(MEMORY_INTERLOCK_BASE+7, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+	if ( check_disk_status(diskID) == DEVICE_FREE && diskQueue[diskID]->next != NULL )
 	{
 		diskQueueCursor = diskQueue[diskID]->next;
 		while(diskQueueCursor != NULL && diskQueueCursor->alreadyGetDisk == 1 )
@@ -1111,6 +1112,7 @@ void disk_node_transfer( INT32 diskID)
 			diskQueue[diskID]->next = diskQueue[diskID]->next->next;
 		}
 	}
+	READ_MODIFY(MEMORY_INTERLOCK_BASE+7, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 }
 
 /************************************************************************
@@ -1181,7 +1183,7 @@ void interrupt_handler( void ) {
 
 		default:
 			
-			if (device_id < DISK_INTERRUPT || device_id >= DISK_INTERRUPT + MAX_NUMBER_OF_DISKS)
+			if (device_id < TIMER_INTERRUPT || device_id >= 13) //DISK_INTERRUPT + MAX_NUMBER_OF_DISKS
 			{
 				break;
 			}
@@ -1189,10 +1191,7 @@ void interrupt_handler( void ) {
 			// make the first node in diskQueue be the current one
 			diskID = device_id - 4;
 			disk_node_transfer(diskID);
-			//disk_node_transfer(1);
-			//disk_node_transfer(2);
-			//disk_node_transfer(3);
-			/*
+			
 			for(i = 1; i < MAX_NUMBER_OF_DISKS; i++ )
 			{
 				if(i != diskID)
@@ -1201,8 +1200,6 @@ void interrupt_handler( void ) {
 				}
 				
 			}
-			*/
-			
 			READ_MODIFY(MEMORY_INTERLOCK_BASE + 15, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &TimeLockResult);
 			break;
 
@@ -1230,7 +1227,7 @@ void fault_handler( void )
     // Now read the status of this device
     MEM_READ(Z502InterruptStatus, &status );
 
-	printf( "Fault_handler: Found vector type %d with value %d\n", device_id, status );
+	//printf( "Fault_handler: Found vector type %d with value %d\n", device_id, status );
 
 	if(device_id != 4)
 	{
@@ -1238,6 +1235,10 @@ void fault_handler( void )
 		{
 			printf("\n@@@@@Page size overflow!\n\n");
 			Z502Halt();
+		}
+		else
+		{
+			printf("\tPage ID:%d\n", status);
 		}
 
 		if (Z502_PAGE_TBL_ADDR == NULL)
@@ -1249,15 +1250,6 @@ void fault_handler( void )
 				Z502_PAGE_TBL_ADDR[i] = (UINT16)0;
 			}
 		}
-
-		// judge whether it is fault caused by read
-		if(SHADOW_TBL[status].diskID > -1)
-		{
-			disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
-			MEM_WRITE(Z502InterruptClear, &Index );
-			return;
-		}
-
 
 		frameQueueCursor = frmQueue->next;
 
@@ -1277,38 +1269,72 @@ void fault_handler( void )
 			// TODO: replace algorithm
 		
 			frameQueueCursor = frmQueue->next;
-			while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
+			while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1) // the later judge should always be true
 			{
 				// if reference bit is not set, swap it here
 				// this is only for one round
-				if ( frameQueueCursor->node->pageID >= victim && (Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) == 0x2000)  // 0x2000 = 8192
+				if ((Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) != 0x2000)  // 0x2000 = 8192
 				{
 					// store the old info into disk
 					diskID = ((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
 					sectorID = (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
+
 					SHADOW_TBL[frameQueueCursor->node->pageID].diskID = diskID;
 					SHADOW_TBL[frameQueueCursor->node->pageID].sectorID = sectorID;
 					SHADOW_TBL[frameQueueCursor->node->pageID].frameID = frameQueueCursor->node->frameID;
+
 					Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] &= 0x7FFF; // set the valid bit to 0
 					disk_readOrWrite(diskID,sectorID,(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], DISK_WRITE);
 
+
+					if(SHADOW_TBL[status].diskID > -1) // pageID = status has its item in shadow table
+					{
+						// new pageID has content in shadow table
+						disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
+						//MEM_WRITE(Z502InterruptClear, &Index );
+					}
+
 					Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
-					frameQueueCursor->node->pageID = status;
+					frameQueueCursor->node->pageID = status; // new pageID
 					frameQueueCursor->node->pid = currentPCBNode->pid;
 					victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
 
 					break;
 				}
+				else
+				{
+					// set reference bit 0
+					Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] = Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0xDFFF;
+				}
+
 				frameQueueCursor = frameQueueCursor->next;
 			}
-
+		
 			// if every reference bit is set
 			if (frameQueueCursor == NULL)
 			{
 				frameQueueCursor = frmQueue->next; // get the first node in frmQueue
+				diskID = ((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
+				sectorID = (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
+
+				SHADOW_TBL[frameQueueCursor->node->pageID].diskID = diskID;
+				SHADOW_TBL[frameQueueCursor->node->pageID].sectorID = sectorID;
+				SHADOW_TBL[frameQueueCursor->node->pageID].frameID = frameQueueCursor->node->frameID;
+
+				Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] &= 0x7FFF; // set the valid bit to 0
+				disk_readOrWrite(diskID,sectorID,(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], DISK_WRITE);
+
+				if(SHADOW_TBL[status].diskID > -1)
+				{
+					// new pageID has content in shadow table
+					disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
+					MEM_WRITE(Z502InterruptClear, &Index );
+				}
+
 				Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
-				frameQueueCursor->node->pageID = status;
+				frameQueueCursor->node->pageID = status; // new pageID
 				frameQueueCursor->node->pid = currentPCBNode->pid;
+				victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
 			}
 		}
 
@@ -1526,6 +1552,9 @@ void svc( SYSTEM_CALL_DATA *SystemCallData )
 			break;
 		
 		case SYSNUM_DISK_READ:
+			/*strncpy(action,"DSKREAD",8);
+			schedule_printer();*/
+			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 3, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 			diskID = SystemCallData->Argument[0];
 			sectorID = SystemCallData->Argument[1];
 			disk_readOrWrite(	diskID,
@@ -1534,17 +1563,22 @@ void svc( SYSTEM_CALL_DATA *SystemCallData )
 								DISK_READ );
 
 			memcpy (SystemCallData->Argument[2], buffer, PGSIZE);
+			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 3, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 			break;
 	
 		case SYSNUM_DISK_WRITE:
+			/*strncpy(action,"DSKWRT",8);
+			schedule_printer();*/
+			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 4, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 			diskID = SystemCallData->Argument[0];
 			sectorID = SystemCallData->Argument[1];
 			memcpy(buffer, SystemCallData->Argument[2], PGSIZE);
-
+			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 4, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 			disk_readOrWrite(	diskID,
 								sectorID,
 								buffer,
 								DISK_WRITE );
+			
 			break;
         // terminate system call
         case SYSNUM_TERMINATE_PROCESS:
@@ -1612,8 +1646,8 @@ void frameInit( void )
 }
 void diskInit(void)
 {
-	int i = 0;
-	for (i = 0; i < MAX_NUMBER_OF_DISKS; i++)
+	int i = 1;
+	for (i = 1; i < MAX_NUMBER_OF_DISKS; i++)
 	{
 		diskQueue[i] = (DiskNode *)malloc(sizeof(DiskNode));
 		diskQueue[i]->next = NULL;

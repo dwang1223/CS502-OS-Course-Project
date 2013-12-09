@@ -1628,7 +1628,7 @@ void test2e(void) {
         Z502_REG1 = Z502_REG3 + Z502_REG4; // Data expected
         MEM_READ(Z502_REG3, &Z502_REG2); // Read back data
 
-        if (Iterations % DISPLAY_GRANULARITY2e == 0)
+        //if (Iterations % DISPLAY_GRANULARITY2e == 0)
             printf("PID= %ld  address= %ld   written= %ld   read= %ld\n",
                     Z502_REG4, Z502_REG3, Z502_REG1, Z502_REG2);
         if (Z502_REG2 != Z502_REG1) // Written = read?
