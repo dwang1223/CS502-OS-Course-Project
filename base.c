@@ -1235,7 +1235,7 @@ void fault_handler( void )
 	{
 		if (status >= 1024)
 		{
-			printf("\n@@@@@Page size overflow!\n\n");
+			//printf("\nPage size overflow!\n\n");
 			Z502Halt();
 		}
 		else
@@ -1284,12 +1284,14 @@ void fault_handler( void )
 					SHADOW_TBL[frameQueueCursor->node->pageID].frameID = frameQueueCursor->node->frameID;
 
 					Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] &= 0x7FFF; // set the valid bit to 0
-					disk_readOrWrite(diskID,sectorID,(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], DISK_WRITE);
+					disk_readOrWrite(	SHADOW_TBL[frameQueueCursor->node->pageID].diskID,
+										SHADOW_TBL[frameQueueCursor->node->pageID].sectorID,
+										(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], 
+										DISK_WRITE );
 
-					//Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
 					frameQueueCursor->node->pageID = status; // new pageID
 					frameQueueCursor->node->pid = currentPCBNode->pid;
-					victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
+					//victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
 
 					frameID = frameQueueCursor->node->frameID;
 
@@ -1314,7 +1316,10 @@ void fault_handler( void )
 		if(SHADOW_TBL[status].diskID > -1) // pageID = status has its item in shadow table
 		{
 			// new pageID has content in shadow table
-			disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
+			disk_readOrWrite(	SHADOW_TBL[status].diskID,
+								SHADOW_TBL[status].sectorID + 8, // HERE?
+								(char*)&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 
+								DISK_READ );
 			SHADOW_TBL[status].diskID = -1;
 			SHADOW_TBL[status].sectorID = -1;
 		}
