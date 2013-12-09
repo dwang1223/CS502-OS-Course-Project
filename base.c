@@ -103,6 +103,7 @@ int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
 int enablePrinter = 0;
+int enableDiskPrint = 0;
 static INT32 victim = 0;
 shadowTable SHADOW_TBL[1024];
 
@@ -175,9 +176,14 @@ void schedule_printer()
 {
 	Queue queueCursor;
 	int count = 0;
+	int counter = 65535;
 	//int diskIndex = 1;
 	if(enablePrinter == 0)
 	{
+		while (counter > 0)
+		{
+			counter--;
+		}
 		return;
 	}
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+11, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
@@ -242,7 +248,11 @@ void schedule_printer()
 	// reset action to NULL
 	memset(action,'\0',8);
 	printf("\n");
-	disk_queue_print();
+	if (enableDiskPrint != 0)
+	{
+		disk_queue_print();
+	}
+	
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+11, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
 }
 void disk_queue_print()
