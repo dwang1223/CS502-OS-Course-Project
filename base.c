@@ -102,7 +102,7 @@ INT32 LockResult, LockResult2, LockResultPrinter, TimeLockResult;
 int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
-int enablePrinter = 1;
+int enablePrinter = 0;
 static INT32 victim = 0;
 shadowTable SHADOW_TBL[1024];
 
@@ -1220,6 +1220,8 @@ void fault_handler( void )
 	FrmQueue	frameQueueCursor;
 	long		diskID;
 	long		sectorID;
+	INT32		isFound = 0;
+	long		frameID;
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -1238,7 +1240,7 @@ void fault_handler( void )
 		}
 		else
 		{
-			printf("\tPage ID:%d\n", status);
+			printf("Page ID:%d\t", status);
 		}
 
 		if (Z502_PAGE_TBL_ADDR == NULL)
@@ -1252,7 +1254,6 @@ void fault_handler( void )
 		}
 
 		frameQueueCursor = frmQueue->next;
-
 		// can do some optimization here, as when frame is changed to be used status, it will never return to unused status
 		while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
 		{
@@ -1263,21 +1264,20 @@ void fault_handler( void )
 			frameQueueCursor->node->isAvailable = 0; // indicate that this frame is used
 			frameQueueCursor->node->pageID = status;
 			frameQueueCursor->node->pid = currentPCBNode->pid;
+			frameID = frameQueueCursor->node->frameID;
 		}
 		else  // this means all frames have been used before
 		{
 			// TODO: replace algorithm
-		
 			frameQueueCursor = frmQueue->next;
-			while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1) // the later judge should always be true
+			while (TRUE)
 			{
-				// if reference bit is not set, swap it here
-				// this is only for one round
-				if ((Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) != 0x2000)  // 0x2000 = 8192
+				if(frameQueueCursor != NULL && (Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) != 0x2000 )
 				{
+					// if reference bit is not set, swap it here
 					// store the old info into disk
-					diskID = ((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
-					sectorID = (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
+					diskID = 1;//((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
+					sectorID = frameQueueCursor->node->pageID;// (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
 
 					SHADOW_TBL[frameQueueCursor->node->pageID].diskID = diskID;
 					SHADOW_TBL[frameQueueCursor->node->pageID].sectorID = sectorID;
@@ -1286,66 +1286,47 @@ void fault_handler( void )
 					Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] &= 0x7FFF; // set the valid bit to 0
 					disk_readOrWrite(diskID,sectorID,(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], DISK_WRITE);
 
-
-					if(SHADOW_TBL[status].diskID > -1) // pageID = status has its item in shadow table
-					{
-						// new pageID has content in shadow table
-						disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
-						//MEM_WRITE(Z502InterruptClear, &Index );
-					}
-
-					Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
+					//Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
 					frameQueueCursor->node->pageID = status; // new pageID
 					frameQueueCursor->node->pid = currentPCBNode->pid;
 					victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
+
+					frameID = frameQueueCursor->node->frameID;
 
 					break;
 				}
 				else
 				{
 					// set reference bit 0
-					Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] = Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0xDFFF;
+					Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] &= 0xDFFF;
+
+					frameQueueCursor = frameQueueCursor->next;
+					if(frameQueueCursor == NULL)
+					{
+						frameQueueCursor = frmQueue->next;
+					}
 				}
-
-				frameQueueCursor = frameQueueCursor->next;
-			}
-		
-			// if every reference bit is set
-			if (frameQueueCursor == NULL)
-			{
-				frameQueueCursor = frmQueue->next; // get the first node in frmQueue
-				diskID = ((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
-				sectorID = (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
-
-				SHADOW_TBL[frameQueueCursor->node->pageID].diskID = diskID;
-				SHADOW_TBL[frameQueueCursor->node->pageID].sectorID = sectorID;
-				SHADOW_TBL[frameQueueCursor->node->pageID].frameID = frameQueueCursor->node->frameID;
-
-				Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] &= 0x7FFF; // set the valid bit to 0
-				disk_readOrWrite(diskID,sectorID,(char*)&MEMORY[frameQueueCursor->node->frameID * PGSIZE], DISK_WRITE);
-
-				if(SHADOW_TBL[status].diskID > -1)
-				{
-					// new pageID has content in shadow table
-					disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
-					MEM_WRITE(Z502InterruptClear, &Index );
-				}
-
-				Z502_PAGE_TBL_ADDR[status] = frameQueueCursor->node->frameID;
-				frameQueueCursor->node->pageID = status; // new pageID
-				frameQueueCursor->node->pid = currentPCBNode->pid;
-				victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
 			}
 		}
-
 		// make the page valid
-		Z502_PAGE_TBL_ADDR[status] = (UINT16)frameQueueCursor->node->frameID | 0x8000;
+		Z502_PAGE_TBL_ADDR[status] = (UINT16)frameID | 0x8000;
+
+		if(SHADOW_TBL[status].diskID > -1) // pageID = status has its item in shadow table
+		{
+			// new pageID has content in shadow table
+			disk_readOrWrite(SHADOW_TBL[status].diskID,SHADOW_TBL[status].sectorID,(char*)&MEMORY[SHADOW_TBL[status].frameID * PGSIZE], DISK_READ);
+			SHADOW_TBL[status].diskID = -1;
+			SHADOW_TBL[status].sectorID = -1;
+		}
 	}
-	//if(device_id == 4 && status == 0)
-	//{
-	//	printf("\n@@@@@Illegal hardware instruction\n\n");
-	//	//Z502Halt();
-	//}
+
+	
+
+	if(device_id == 4 && status == 0)
+	{
+		printf("\n@@@@@Illegal hardware instruction\n\n");
+		//Z502Halt();
+	}
 
     // Clear out this device - we're done with it
     MEM_WRITE(Z502InterruptClear, &Index );
@@ -1789,7 +1770,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
