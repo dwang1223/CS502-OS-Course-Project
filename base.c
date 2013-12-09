@@ -102,9 +102,9 @@ INT32 LockResult, LockResult2, LockResultPrinter, TimeLockResult;
 int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
-int enablePrinter = 0;
 int enableMPrinter = 0;
-int enableDiskPrint = 0;
+int enablePrinter = 1;
+int enableDiskPrint = 1;
 static INT32 victim = 0;
 shadowTable SHADOW_TBL[1024];
 
@@ -363,6 +363,7 @@ int start_timer(long *sleep_time)
 
 void dispatcher()
 {
+	int i = 1;
 	// if no node in readyQueue now, just do Idle() to wait for sleeping node wake up by interruption 
 	while(readyQueue->next == NULL)
 	{
@@ -380,6 +381,12 @@ void dispatcher()
 			return;
 		}
 		currentPCBNode = NULL;
+
+		for(i = 1; i < MAX_NUMBER_OF_DISKS; i++ )
+		{
+			disk_node_transfer(i);
+		}
+
 		CALL(Z502Idle());
 		// Test use: print current time
 		/*MEM_READ( Z502ClockStatus, &currentTime );
@@ -1755,7 +1762,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
