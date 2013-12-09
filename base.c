@@ -103,80 +103,48 @@ int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
 int enablePrinter = 0;
+int enableMPrinter = 1;
 int enableDiskPrint = 0;
 static INT32 victim = 0;
 shadowTable SHADOW_TBL[1024];
 
 void memory_printer()
 {
-	Queue queueCursor;
+	FrmQueue frameQueueCursor;
 	//DiskQueue diskQueueCursor;
-	int count = 0;
+	int state = 0;
 	//int diskIndex = 1;
-	if (enablePrinter == 0)
+	if (enableMPrinter == 0)
 	{
 		return;
 	}
-	READ_MODIFY(MEMORY_INTERLOCK_BASE + 12, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
-	printf("\n");
-	SP_print_header();
-	SP_setup_action(SP_ACTION_MODE, action);
-	SP_setup(SP_RUNNING_MODE, currentPCBNode->pid);
-
-	// print information of readyQueue, if the nodes in readyQueue are more than 10, just print the first 10
-	queueCursor = readyQueue;
-	while (queueCursor != NULL && queueCursor->next != NULL)
+	READ_MODIFY(MEMORY_INTERLOCK_BASE + 14, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
+	frameQueueCursor = frmQueue->next;
+	while (frameQueueCursor->node->pageID >= 0 && frameQueueCursor->node->pageID <= 1023)
 	{
-		queueCursor = queueCursor->next;
-		count++;
-		SP_setup(SP_READY_MODE, queueCursor->node->pid);
-		if (count >= 10)
-		{
-			count = 0;
-			break;
-		}
+		state = ((Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & PTBL_VALID_BIT) >> 13) + 
+				((Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & PTBL_MODIFIED_BIT) >> 13) +
+				((Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & PTBL_REFERENCED_BIT) >> 13);
+
+		MP_setup(	frameQueueCursor->node->frameID,
+					frameQueueCursor->node->pid,
+					frameQueueCursor->node->pageID,
+					state
+				);
+		frameQueueCursor = frameQueueCursor->next;
 	}
 
-	// print information of timerQueue, if the nodes in timerQueue are more than 10, just print the first 10
-	queueCursor = timerQueue;
-	while (queueCursor != NULL && queueCursor->next != NULL)
-	{
-		queueCursor = queueCursor->next;
-		count++;
-		SP_setup(SP_WAITING_MODE, queueCursor->node->pid);
-		if (count >= 10)
-		{
-			count = 0;
-			break;
-		}
-	}
-
-	// print information of suspendQueue, if the nodes in suspendQueue are more than 10, just print the first 10
-
-	queueCursor = suspendQueue;
-	while (queueCursor != NULL && queueCursor->next != NULL)
-	{
-		queueCursor = queueCursor->next;
-		count++;
-		SP_setup(SP_SUSPENDED_MODE, queueCursor->node->pid);
-		if (count >= 10)
-		{
-			count = 0;
-			break;
-		}
-	}
-
-	SP_print_line();
+	MP_print_line();
 	// reset action to NULL
-	memset(action, '\0', 8);
+
 	printf("\n");
-	READ_MODIFY(MEMORY_INTERLOCK_BASE + 12, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
+	READ_MODIFY(MEMORY_INTERLOCK_BASE + 14, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
 }
 void schedule_printer()
 {
 	Queue queueCursor;
 	int count = 0;
-	int counter = 65535;
+	long counter = 65535;
 	//int diskIndex = 1;
 	if(enablePrinter == 0)
 	{
@@ -1327,12 +1295,13 @@ void fault_handler( void )
 		{
 			// new pageID has content in shadow table
 			disk_readOrWrite(	SHADOW_TBL[status].diskID,
-								SHADOW_TBL[status].sectorID + 8, // HERE?
+								SHADOW_TBL[status].sectorID,// + 8, // HERE?
 								(char*)&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 
 								DISK_READ );
 			SHADOW_TBL[status].diskID = -1;
 			SHADOW_TBL[status].sectorID = -1;
 		}
+		memory_printer();
 	}
 
 	
@@ -1785,7 +1754,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2b, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
