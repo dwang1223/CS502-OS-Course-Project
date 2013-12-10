@@ -1602,6 +1602,7 @@ void test2e(void) {
 
     for (Iterations = 0; Iterations < VIRTUAL_MEM_PGS; Iterations +=
     STEP_SIZE) {
+
         Z502_REG3 = PGSIZE * Iterations; // Generate address
         Z502_REG1 = Z502_REG3 + Z502_REG4; // Generate data 
         MEM_WRITE(Z502_REG3, &Z502_REG1); // Write the data
@@ -1616,7 +1617,8 @@ void test2e(void) {
 
         // It makes life more fun!! to write the data again
         MEM_WRITE(Z502_REG3, &Z502_REG1); // Write the data
-
+		
+		
     }    // End of for loop
 
     // Now read back the data we've written and paged
