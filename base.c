@@ -151,7 +151,7 @@ void schedule_printer()
 {
 	Queue queueCursor;
 	int count = 0;
-	long counter = 655350;
+	long counter = 65535;
 	//int diskIndex = 1;
 	if(enablePrinter == 0)
 	{
@@ -1059,11 +1059,11 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 
 	diskStatus = check_disk_status(diskID);
 
-	if (diskStatus == DEVICE_IN_USE)
-	{
+	/*if (diskStatus == DEVICE_IN_USE)
+	{*/
 		add_currentPCB_to_diskQueue_head(diskID, sectorID, buffer, readOrWrite);
 		dispatcher();
-	}
+	//}
 }
 void disk_readOrWrite_without_dispatch(long diskID, long sectorID, char* buffer, int readOrWrite)
 {
@@ -1092,7 +1092,6 @@ void disk_readOrWrite_without_dispatch(long diskID, long sectorID, char* buffer,
 		diskStatus = check_disk_status(diskID);
 	}
 }
-
 
 void disk_node_transfer( INT32 diskID )
 {
@@ -1236,7 +1235,8 @@ void fault_handler( void )
 	long		pageID;
 	static int  flag = 0;
 	static int	sectorIDtoAssign = 0;
-	int			randPick;
+	//int			randPick;
+
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -1263,6 +1263,7 @@ void fault_handler( void )
 			Z502_PAGE_TBL_LENGTH = 1024;
 			Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
 		}
+
 		READ_MODIFY(MEMORY_INTERLOCK_BASE+12, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 		if (flag == 0 )
 		{
@@ -1279,8 +1280,10 @@ void fault_handler( void )
 					break;
 				}
 			}
+
 			if(i == 64) flag = 1;
 		}
+
 		if(flag == 1)  // this means all frames have been used before
 		{
 			// Replace Algorithm
@@ -1317,7 +1320,7 @@ void fault_handler( void )
 						SHADOW_TBL[pageID].diskID = diskID;
 						SHADOW_TBL[pageID].sectorID = sectorID;
 						SHADOW_TBL[pageID].frameID = frameID;
-						//SHADOW_TBL[pageID].pageID = pageID;
+						SHADOW_TBL[pageID].pageID = pageID;
 						SHADOW_TBL[pageID].isUsed = 1;
 
 						disk_readOrWrite(	SHADOW_TBL[pageID].diskID,
@@ -1326,9 +1329,6 @@ void fault_handler( void )
 											DISK_WRITE );
 
 					//}
-					
-					
-
 
 					/************************************************************************/
 					/* Deal with New pageID     
@@ -1336,7 +1336,7 @@ void fault_handler( void )
 					/************************************************************************/
 
 					
-					if( SHADOW_TBL[status].isUsed > 0 )
+					if (SHADOW_TBL[status].isUsed > 0 && SHADOW_TBL[status].frameID > -1)
 					{
 						// new pageID has content in shadow table
 						disk_readOrWrite(	SHADOW_TBL[status].diskID,
@@ -1346,12 +1346,12 @@ void fault_handler( void )
 
 						SHADOW_TBL[status].isUsed = 0;
 						SHADOW_TBL[status].frameID = -1;
+						SHADOW_TBL[status].pageID = status;
 
 					}
 					
 					// make the page valid
 					Z502_PAGE_TBL_ADDR[status] = (UINT16)frameID | 0x8000;
-					//frmArray[i].frameID = frameID;
 					frmArray[i].pageID = status; // new pageID
 					frmArray[i].pid = currentPCBNode->pid;
 					frmArray[i].isAvailable = 0;
@@ -1360,7 +1360,7 @@ void fault_handler( void )
 					victim = (victim + 1) % PHYS_MEM_PGS;
 
 					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
-					//printf("  Old:%4ld, sector: %2ld, New:%4d, sector: %4ld, frameID: %2d \n", pageID, sectorID, status, SHADOW_TBL[status].sectorID, frameID);
+					printf("  Old:%4ld, sector: %2ld, New:%4d, sector: %4ld, frameID: %2d \n", pageID, sectorID, status, SHADOW_TBL[status].sectorID, frameID);
 
 					
 				//	break;
@@ -1382,7 +1382,7 @@ void fault_handler( void )
 	if(device_id == 4 && status == 0)
 	{
 		printf("\nClock | Timer has error \n\n");
-		//Z502Halt();
+		Z502Halt();
 	}
 
     // Clear out this device - we're done with it
@@ -1813,7 +1813,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2f, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
