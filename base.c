@@ -1264,7 +1264,7 @@ void fault_handler( void )
 			Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
 		}
 
-		READ_MODIFY(MEMORY_INTERLOCK_BASE+12, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+		//READ_MODIFY(MEMORY_INTERLOCK_BASE+12, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 		if (flag == 0 )
 		{
 			for(i = 0; i < (int)PHYS_MEM_PGS; i++)
@@ -1289,8 +1289,9 @@ void fault_handler( void )
 			// Replace Algorithm
 			// change second to FIFO
 
-			//i = status % 64;//victim;
-			i = victim;
+			//victim = status % 64;
+			//victim = victim;
+			victim = 2*currentPCBNode->pid + 1;;
 			/*for(i = victim; i < (int)PHYS_MEM_PGS; )
 			{
 			if( (UINT16)(Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0x2000) != 0x2000 )
@@ -1299,8 +1300,8 @@ void fault_handler( void )
 					/* Deal with old pageID    
 					/* Write its info into disk
 					/************************************************************************/
-					pageID  = frmArray[i].pageID; // old pageID, we will write its frame info to disk
-					frameID = frmArray[i].frameID;
+					pageID  = frmArray[victim].pageID; // old pageID, we will write its frame info to disk
+					frameID = frmArray[victim].frameID;
 
 					diskID = currentPCBNode->pid + 1;//((frmArray[i].pageID & 0x0018) >> 3) + 1;
 					sectorID = pageID;//sectorIDtoAssign++; //pageID; //(frmArray[i].pageID & 0x0FE0) >> 5;
@@ -1352,15 +1353,15 @@ void fault_handler( void )
 					
 					// make the page valid
 					Z502_PAGE_TBL_ADDR[status] = (UINT16)frameID | 0x8000;
-					frmArray[i].pageID = status; // new pageID
-					frmArray[i].pid = currentPCBNode->pid;
-					frmArray[i].isAvailable = 0;
+					frmArray[victim].pageID = status; // new pageID
+					frmArray[victim].pid = currentPCBNode->pid;
+					frmArray[victim].isAvailable = 0;
 
 					//victim = (i + 1) % PHYS_MEM_PGS;
 					victim = (victim + 1) % PHYS_MEM_PGS;
 
 					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
-					printf("  Old:%4ld, sector: %2ld, New:%4d, sector: %4ld, frameID: %2d \n", pageID, sectorID, status, SHADOW_TBL[status].sectorID, frameID);
+					//printf("  Old:%4ld, sector: %2ld, New:%4d, sector: %4ld, frameID: %2d \n", pageID, sectorID, status, SHADOW_TBL[status].sectorID, frameID);
 
 					
 				//	break;
@@ -1373,7 +1374,7 @@ void fault_handler( void )
 				//i = ( i + 1 ) % 64;
 			//}
 		}
-		READ_MODIFY(MEMORY_INTERLOCK_BASE+12, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+		//READ_MODIFY(MEMORY_INTERLOCK_BASE+12, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 		memory_printer();
 	}
 
@@ -1813,7 +1814,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2f, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2g, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
