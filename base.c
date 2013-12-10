@@ -1281,7 +1281,7 @@ void fault_handler( void )
 		{
 			// Replace Algorithm
 
-			for(i = victim; i < (int)PHYS_MEM_PGS; i++)
+			for(i = victim; i < (int)PHYS_MEM_PGS; )
 			{
 				if( (UINT16)(Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0x2000) != 0x2000 )
 				{
@@ -1293,21 +1293,31 @@ void fault_handler( void )
 					frameID = frmArray[i].frameID;
 
 					diskID = currentPCBNode->pid + 1;//((frmArray[i].pageID & 0x0018) >> 3) + 1;
-					sectorID = sectorIDtoAssign++; //pageID; //(frmArray[i].pageID & 0x0FE0) >> 5;
+					sectorID = pageID;//sectorIDtoAssign++; //pageID; //(frmArray[i].pageID & 0x0FE0) >> 5;
 
 
-					SHADOW_TBL[pageID].diskID = diskID;
-					SHADOW_TBL[pageID].sectorID = sectorID;
-					SHADOW_TBL[pageID].frameID = frameID;
-					//SHADOW_TBL[pageID].pageID = pageID;
-					SHADOW_TBL[pageID].isUsed++;
+					//SHADOW_TBL[pageID].diskID = diskID;
+					//SHADOW_TBL[pageID].sectorID = sectorID;
+					//SHADOW_TBL[pageID].frameID = frameID;
+					////SHADOW_TBL[pageID].pageID = pageID;
+					//SHADOW_TBL[pageID].isUsed++;
+
+					
+					if(SHADOW_TBL[pageID].isUsed < 1)
+					{
+						SHADOW_TBL[pageID].diskID = diskID;
+						SHADOW_TBL[pageID].sectorID = sectorID;
+						SHADOW_TBL[pageID].frameID = frameID;
+						//SHADOW_TBL[pageID].pageID = pageID;
+						SHADOW_TBL[pageID].isUsed++;
+						disk_readOrWrite(	SHADOW_TBL[pageID].diskID,
+							SHADOW_TBL[pageID].sectorID,
+							(char*)&MEMORY[SHADOW_TBL[pageID].frameID * PGSIZE], 
+							DISK_WRITE );
+					}
 
 					Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
 
-					disk_readOrWrite(	SHADOW_TBL[pageID].diskID,
-										SHADOW_TBL[pageID].sectorID,
-										(char*)&MEMORY[SHADOW_TBL[pageID].frameID * PGSIZE], 
-										DISK_WRITE );
 
 					/************************************************************************/
 					/* Deal with New pageID     
@@ -1315,7 +1325,7 @@ void fault_handler( void )
 					/************************************************************************/
 
 					
-					if( SHADOW_TBL[status].isUsed > 0 && SHADOW_TBL[j].diskID > -1)
+					if( SHADOW_TBL[status].isUsed > 0 )
 					{
 						// new pageID has content in shadow table
 						disk_readOrWrite(	SHADOW_TBL[status].diskID,
@@ -1323,16 +1333,13 @@ void fault_handler( void )
 											(char*)&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 
 											DISK_READ );
 						
-						SHADOW_TBL[status].isUsed--;
+						/*SHADOW_TBL[status].isUsed--;
 						if(SHADOW_TBL[status].isUsed < 1)
 						{
 							SHADOW_TBL[status].diskID = -1;
 							SHADOW_TBL[status].sectorID = -1;
 							SHADOW_TBL[status].isUsed = 0;
-						}
-						
-						
-						break;
+						}*/
 					}
 					
 					// make the page valid
@@ -1341,10 +1348,12 @@ void fault_handler( void )
 					frmArray[i].pid = currentPCBNode->pid;
 					frmArray[i].isAvailable = 0;
 
-					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
-					printf("Old:%4ld, New:%4d, frameID: %2d diskID: %2ld, sector: %4ld\n", pageID, status, frameID, diskID, sectorID);
-
 					victim = (i + 1) % PHYS_MEM_PGS;
+
+					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
+					printf("Old:%4ld, New:%4d, frameID: %2d diskID: %2ld, sector: %4ld\n", pageID*16, status*16, frameID, diskID, sectorID);
+
+					
 					break;
 				}
 				else
@@ -1352,10 +1361,7 @@ void fault_handler( void )
 					// set reference bit 0
 					Z502_PAGE_TBL_ADDR[frmArray[i].pageID] = (UINT16)Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0xDFFF;
 				}
-				if(i == 63)
-				{
-					i = -1;
-				}
+				i = ( i + 1 ) % 64;
 			}
 		}
 		READ_MODIFY(MEMORY_INTERLOCK_BASE+12, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
