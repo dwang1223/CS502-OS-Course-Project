@@ -1602,41 +1602,22 @@ void test2e(void) {
 
     for (Iterations = 0; Iterations < VIRTUAL_MEM_PGS; Iterations +=
     STEP_SIZE) {
-		//if(Iterations > 576)
-		//{
-		//	Iterations = 560;
-		//	Z502_REG3 = PGSIZE * Iterations; // Generate address
-		//	Z502_REG1 = Z502_REG3 + Z502_REG4; // Generate data 
-		//	MEM_WRITE(Z502_REG3, &Z502_REG1); // Write the data
 
-		//	MEM_READ(Z502_REG3, &Z502_REG2); // Read back data
-
-		//	//if (Iterations % DISPLAY_GRANULARITY2e == 0)
-		//	printf("PID= %ld  address= %ld   written= %ld   read= %ld\n",
-		//		Z502_REG4, Z502_REG3, Z502_REG1, Z502_REG2);
-		//	if (Z502_REG2 != Z502_REG1) // Written = read?
-		//		printf("AN ERROR HAS OCCURRED.\n");
-
-		//	// It makes life more fun!! to write the data again
-		//	MEM_WRITE(Z502_REG3, &Z502_REG1); // Write the data
-		//}
-		//else
-		//{
         Z502_REG3 = PGSIZE * Iterations; // Generate address
         Z502_REG1 = Z502_REG3 + Z502_REG4; // Generate data 
         MEM_WRITE(Z502_REG3, &Z502_REG1); // Write the data
 
         MEM_READ(Z502_REG3, &Z502_REG2); // Read back data
 
-        //if (Iterations % DISPLAY_GRANULARITY2e == 0)
-            printf("PID= %ld  address= %ld   written= %ld   read= %ld\n",
-                    Z502_REG4, Z502_REG3, Z502_REG1, Z502_REG2);
+        if (Iterations % DISPLAY_GRANULARITY2e == 0)
+			printf("PID= %ld  address= %ld   written= %ld   read= %ld\n",
+				Z502_REG4, Z502_REG3, Z502_REG1, Z502_REG2);
         if (Z502_REG2 != Z502_REG1) // Written = read?
             printf("AN ERROR HAS OCCURRED.\n");
 
         // It makes life more fun!! to write the data again
         MEM_WRITE(Z502_REG3, &Z502_REG1); // Write the data
-		//}
+		
 		
     }    // End of for loop
 
@@ -1648,11 +1629,9 @@ void test2e(void) {
         Z502_REG3 = PGSIZE * Iterations; // Generate address
         Z502_REG1 = Z502_REG3 + Z502_REG4; // Data expected
 
-		//MEM_WRITE(Z502_REG3, &Z502_REG1); // Write the data
-
         MEM_READ(Z502_REG3, &Z502_REG2); // Read back data
 
-        //if (Iterations % DISPLAY_GRANULARITY2e == 0)
+        if (Iterations % DISPLAY_GRANULARITY2e == 0)
             printf("PID= %ld  address= %ld   written= %ld   read= %ld\n",
                     Z502_REG4, Z502_REG3, Z502_REG1, Z502_REG2);
         if (Z502_REG2 != Z502_REG1) // Written = read?
