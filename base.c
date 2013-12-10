@@ -316,7 +316,6 @@ void current_statue_print()
 }
 int start_timer(long *sleep_time)
 {
-
 	long _wakeUpTime;
 	Queue timerQueueCursor,preTimerQueueCursor, nodeTmp;
 
@@ -1207,7 +1206,7 @@ void interrupt_handler( void ) {
 			
 			for(i = 1; i < MAX_NUMBER_OF_DISKS; i++ )
 			{
-				if(i != diskID)
+				if( i != diskID )
 				{
 					disk_node_transfer(i);
 				}
@@ -1287,6 +1286,7 @@ void fault_handler( void )
 			// Replace Algorithm
 			// change second to FIFO
 
+			//i = status % 64;//victim;
 			i = victim;
 			/*for(i = victim; i < (int)PHYS_MEM_PGS; )
 			{
@@ -1302,27 +1302,30 @@ void fault_handler( void )
 					diskID = currentPCBNode->pid + 1;//((frmArray[i].pageID & 0x0018) >> 3) + 1;
 					sectorID = pageID;//sectorIDtoAssign++; //pageID; //(frmArray[i].pageID & 0x0FE0) >> 5;
 
+					Z502_PAGE_TBL_ADDR[pageID] = 64; // set invalid frameID
 					Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
-
+					/*
 					//SHADOW_TBL[pageID].diskID = diskID;
 					//SHADOW_TBL[pageID].sectorID = sectorID;
 					//SHADOW_TBL[pageID].frameID = frameID;
 					////SHADOW_TBL[pageID].pageID = pageID;
 					//SHADOW_TBL[pageID].isUsed++;
-
+					*/
 					
-					if(SHADOW_TBL[pageID].isUsed < 1)
-					{
+					/*if(SHADOW_TBL[pageID].isUsed < 1)
+					{*/
 						SHADOW_TBL[pageID].diskID = diskID;
 						SHADOW_TBL[pageID].sectorID = sectorID;
 						SHADOW_TBL[pageID].frameID = frameID;
 						//SHADOW_TBL[pageID].pageID = pageID;
-						SHADOW_TBL[pageID].isUsed++;
+						SHADOW_TBL[pageID].isUsed = 1;
+
 						disk_readOrWrite(	SHADOW_TBL[pageID].diskID,
-							SHADOW_TBL[pageID].sectorID,
-							(char*)&MEMORY[SHADOW_TBL[pageID].frameID * PGSIZE], 
-							DISK_WRITE );
-					}
+											SHADOW_TBL[pageID].sectorID,
+											(char*)&MEMORY[SHADOW_TBL[pageID].frameID * PGSIZE], 
+											DISK_WRITE );
+
+					//}
 					
 					
 
@@ -1340,18 +1343,15 @@ void fault_handler( void )
 											SHADOW_TBL[status].sectorID ,//+ 8, // HERE?
 											(char*)&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 
 											DISK_READ );
-						
-						/*SHADOW_TBL[status].isUsed--;
-						if(SHADOW_TBL[status].isUsed < 1)
-						{
-							SHADOW_TBL[status].diskID = -1;
-							SHADOW_TBL[status].sectorID = -1;
-							SHADOW_TBL[status].isUsed = 0;
-						}*/
+
+						SHADOW_TBL[status].isUsed = 0;
+						SHADOW_TBL[status].frameID = -1;
+
 					}
 					
 					// make the page valid
 					Z502_PAGE_TBL_ADDR[status] = (UINT16)frameID | 0x8000;
+					//frmArray[i].frameID = frameID;
 					frmArray[i].pageID = status; // new pageID
 					frmArray[i].pid = currentPCBNode->pid;
 					frmArray[i].isAvailable = 0;
@@ -1360,7 +1360,7 @@ void fault_handler( void )
 					victim = (victim + 1) % PHYS_MEM_PGS;
 
 					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
-					//printf("Old:%4ld, New:%4d, frameID: %2d diskID: %2ld, sector: %4ld\n", pageID*16, status*16, frameID, diskID, sectorID);
+					//printf("  Old:%4ld, sector: %2ld, New:%4d, sector: %4ld, frameID: %2d \n", pageID, sectorID, status, SHADOW_TBL[status].sectorID, frameID);
 
 					
 				//	break;
@@ -1381,7 +1381,7 @@ void fault_handler( void )
 
 	if(device_id == 4 && status == 0)
 	{
-		printf("\n@@@@@Illegal hardware instruction\n\n");
+		printf("\nClock | Timer has error \n\n");
 		//Z502Halt();
 	}
 
@@ -1813,7 +1813,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2f, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
