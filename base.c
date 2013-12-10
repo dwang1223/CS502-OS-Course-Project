@@ -36,6 +36,7 @@
 #define         ILLEGAL_PRIORITY                -3
 #define         NAME_DUPLICATED					-4
 
+int randomInt(int , int );
 void memory_printer();
 void schedule_printer();
 void ready_queue_print();
@@ -109,6 +110,10 @@ int enableDiskPrint = 0;
 static INT32 victim = 0;
 shadowTable SHADOW_TBL[1024];
 
+int randomInt(int min, int max)
+{
+	return (rand() % (max+1-min))+min;
+}
 void memory_printer()
 {
 	FrmQueue frameQueueCursor;
@@ -145,7 +150,7 @@ void schedule_printer()
 {
 	Queue queueCursor;
 	int count = 0;
-	long counter = 65535;
+	long counter = 655350;
 	//int diskIndex = 1;
 	if(enablePrinter == 0)
 	{
@@ -1238,6 +1243,7 @@ void fault_handler( void )
 	INT32		isFound = 0;
 	long		frameID;
 	long		pageID;
+	static int  flag = 0;
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -1263,19 +1269,15 @@ void fault_handler( void )
 		{
 			Z502_PAGE_TBL_LENGTH = 1024;
 			Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
-			/*for (i = 0; i < Z502_PAGE_TBL_LENGTH; i++)
-			{
-				Z502_PAGE_TBL_ADDR[i] = (UINT16)0;
-			}*/
 		}
 
 		frameQueueCursor = frmQueue->next;
 		// can do some optimization here, as when frame is changed to be used status, it will never return to unused status
-		while (frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
+		while (flag == 0 && frameQueueCursor != NULL && frameQueueCursor->node->isAvailable != 1)
 		{
 			frameQueueCursor = frameQueueCursor->next;
 		}
-		if (frameQueueCursor != NULL)
+		if (flag == 0 && frameQueueCursor != NULL)
 		{
 			frameQueueCursor->node->isAvailable = 0; // indicate that this frame is used
 			frameQueueCursor->node->pageID = status;
@@ -1287,8 +1289,15 @@ void fault_handler( void )
 		}
 		else  // this means all frames have been used before
 		{
+			flag = 1;
 			// TODO: replace algorithm
-			frameQueueCursor = frmQueue->next;
+			/*frameQueueCursor = frmQueue->next;
+			victim = randomInt(0,63);
+			while(victim > 0)
+			{
+				frameQueueCursor = frameQueueCursor->node;
+				victim--;
+			}*/
 			while (TRUE)
 			{
 				if( (UINT16)(Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) != 0x2000 )
@@ -1299,7 +1308,7 @@ void fault_handler( void )
 					// if reference bit is not set, swap it here
 					// store the old info into disk
 
-					diskID = 1;//((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
+					diskID = currentPCBNode->pid + 1;//((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
 					sectorID = pageID;// (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
 
 					SHADOW_TBL[pageID].diskID = diskID;
