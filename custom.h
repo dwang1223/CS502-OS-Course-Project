@@ -91,6 +91,7 @@ typedef struct disk
 
 typedef struct 
 {
+	long pageID;
 	long diskID;    
 	long sectorID;
 	int frameID;

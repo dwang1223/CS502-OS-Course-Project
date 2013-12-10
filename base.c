@@ -1010,7 +1010,14 @@ void add_currentPCB_to_diskQueue_head(long diskID, long sectorID, char* buffer, 
 	//diskNode->PCB->diskID = currentPCBNode->diskID;
 	//diskNode->PCB->sectorID = currentPCBNode->sectorID;
 	//strcpy(diskNode->buffer, buffer);
-	diskNode->next = diskQueue[(int)diskID]->next;
+	if(diskQueue[(int)diskID] != NULL)
+	{
+		diskNode->next = diskQueue[(int)diskID]->next;
+	}
+	else
+	{
+		diskNode->next = NULL;
+	}
 	diskQueue[(int)diskID]->next = diskNode;
 }
 int check_disk_status(long diskID)
@@ -1217,13 +1224,15 @@ void fault_handler( void )
     INT32       device_id;
     INT32       status;
     INT32       Index = 0;
-	INT32		i = 0;
+	INT32		i = 0, j = 0;
 	long		diskID;
 	long		sectorID;
 	INT32		isFound = 0;
 	long		frameID;
 	long		pageID;
 	static int  flag = 0;
+	static int sectorIDtoAssign = 0;
+
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -1275,46 +1284,59 @@ void fault_handler( void )
 			{
 				if( (UINT16)(Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0x2000) != 0x2000 )
 				{
+					/************************************************************************/
+					/* Deal with old pageID    
+					/* Write its info into disk
+					/************************************************************************/
 					pageID  = frmArray[i].pageID; // old pageID, we will write its frame info to disk
 					frameID = frmArray[i].frameID;
 
 					diskID = currentPCBNode->pid + 1;//((frmArray[i].pageID & 0x0018) >> 3) + 1;
-					sectorID = pageID;// (frmArray[i].pageID & 0x0FE0) >> 5;
+					sectorID = sectorIDtoAssign++; //pageID; //(frmArray[i].pageID & 0x0FE0) >> 5;
 
-					SHADOW_TBL[pageID].diskID = diskID;
-					SHADOW_TBL[pageID].sectorID = sectorID;
-					SHADOW_TBL[pageID].frameID = frameID;
-					SHADOW_TBL[pageID].isUsed = 1;
+
+					SHADOW_TBL[sectorID].diskID = diskID;
+					SHADOW_TBL[sectorID].sectorID = sectorID;
+					SHADOW_TBL[sectorID].frameID = frameID;
+					SHADOW_TBL[sectorID].pageID = pageID;
+					SHADOW_TBL[sectorID].isUsed = 1;
 
 					Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
 
-					disk_readOrWrite(	SHADOW_TBL[pageID].diskID,
-										SHADOW_TBL[pageID].sectorID,
-										(char*)&MEMORY[SHADOW_TBL[pageID].frameID * PGSIZE], 
+					disk_readOrWrite(	SHADOW_TBL[sectorID].diskID,
+										SHADOW_TBL[sectorID].sectorID,
+										(char*)&MEMORY[SHADOW_TBL[sectorID].frameID * PGSIZE], 
 										DISK_WRITE );
 
-					if(SHADOW_TBL[status].diskID > -1 || SHADOW_TBL[status].isUsed == 1) // pageID = status has its item in shadow table
-					{
-						// new pageID has content in shadow table
-						disk_readOrWrite(	SHADOW_TBL[status].diskID,
-											SHADOW_TBL[status].sectorID ,//+ 8, // HERE?
-											(char*)&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 
-											DISK_READ );
-						//memcpy(&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 64*status, PGSIZE);
-						SHADOW_TBL[status].diskID = -1;
-						SHADOW_TBL[status].sectorID = -1;
-						SHADOW_TBL[status].isUsed == 0;
-					}
+					/************************************************************************/
+					/* Deal with New pageID     
+					/* if it has info in disk, restore it
+					/************************************************************************/
 
+					for(j = sectorIDtoAssign-1; j >= 0; j--)
+					{
+						if(SHADOW_TBL[j].pageID == status && SHADOW_TBL[j].isUsed == 1 && SHADOW_TBL[j].diskID > -1)//SHADOW_TBL[status].diskID > -1 || SHADOW_TBL[status].isUsed == 1) // pageID = status has its item in shadow table
+						{
+							// new pageID has content in shadow table
+							disk_readOrWrite(	SHADOW_TBL[j].diskID,
+												SHADOW_TBL[j].sectorID ,//+ 8, // HERE?
+												(char*)&MEMORY[(SHADOW_TBL[j].frameID) * PGSIZE], 
+												DISK_READ );
+
+							SHADOW_TBL[j].diskID = -1;
+							SHADOW_TBL[j].sectorID = -1;
+							SHADOW_TBL[j].isUsed == 0;
+							break;
+						}
+					}
 					// make the page valid
 					Z502_PAGE_TBL_ADDR[status] = (UINT16)frameID | 0x8000;
 					frmArray[i].pageID = status; // new pageID
 					frmArray[i].pid = currentPCBNode->pid;
 					frmArray[i].isAvailable = 0;
 
-					//victim = (frmArray[i].pageID + 1) % Z502_PAGE_TBL_LENGTH;
-
 					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
+					printf("Old:%4ld, New:%4d, frameID: %2d diskID: %2ld, sector: %4ld\n", pageID, status, frameID, diskID, sectorID);
 					victim = (i + 1) % PHYS_MEM_PGS;
 					break;
 				}
@@ -1636,10 +1658,11 @@ void diskInit(void)
 void shadowTableInit( void )
 {
 	int i = 0;
-	for(i = 0; i < 1024; i++)
+	for(i = 0; i < 1208; i++)
 	{
 		SHADOW_TBL[i].isUsed = 0;
 		SHADOW_TBL[i].diskID = -1;
+		SHADOW_TBL[i].pageID = -1;
 	}
 
 }
@@ -1768,7 +1791,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2e, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2f, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
