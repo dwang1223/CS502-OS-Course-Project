@@ -104,8 +104,8 @@ int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
 int enableMPrinter = 0;
-int enablePrinter = 1;
-int enableDiskPrint = 1;
+int enablePrinter = 0;
+int enableDiskPrint = 0;
 static INT32 victim = 0;
 shadowTable SHADOW_TBL[1024];
 
@@ -1302,6 +1302,7 @@ void fault_handler( void )
 					diskID = currentPCBNode->pid + 1;//((frmArray[i].pageID & 0x0018) >> 3) + 1;
 					sectorID = pageID;//sectorIDtoAssign++; //pageID; //(frmArray[i].pageID & 0x0FE0) >> 5;
 
+					Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
 
 					//SHADOW_TBL[pageID].diskID = diskID;
 					//SHADOW_TBL[pageID].sectorID = sectorID;
@@ -1322,8 +1323,8 @@ void fault_handler( void )
 							(char*)&MEMORY[SHADOW_TBL[pageID].frameID * PGSIZE], 
 							DISK_WRITE );
 					}
-
-					Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
+					
+					
 
 
 					/************************************************************************/
