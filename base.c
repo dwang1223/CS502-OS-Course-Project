@@ -1244,6 +1244,7 @@ void fault_handler( void )
 	long		frameID;
 	long		pageID;
 	static int  flag = 0;
+	int			randPick;
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -1291,74 +1292,58 @@ void fault_handler( void )
 		{
 			flag = 1;
 			// TODO: replace algorithm
-			/*frameQueueCursor = frmQueue->next;
-			victim = randomInt(0,63);
-			while(victim > 0)
+			frameQueueCursor = frmQueue->next;
+			randPick = randomInt(0,63);
+			printf("");
+			while( frameQueueCursor->next != NULL && randPick > 0 )
 			{
-				frameQueueCursor = frameQueueCursor->node;
-				victim--;
-			}*/
-			while (TRUE)
-			{
-				if( (UINT16)(Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0x2000) != 0x2000 )
-				{
-					pageID  = frameQueueCursor->node->pageID; // old pageID, we will write its frame info to disk
-					frameID = frameQueueCursor->node->frameID;
-
-					// if reference bit is not set, swap it here
-					// store the old info into disk
-
-					diskID = currentPCBNode->pid + 1;//((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
-					sectorID = pageID;// (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
-
-					SHADOW_TBL[pageID].diskID = diskID;
-					SHADOW_TBL[pageID].sectorID = sectorID;
-					SHADOW_TBL[pageID].frameID = frameID;
-					SHADOW_TBL[pageID].isUsed = 1;
-
-					Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
-
-					disk_readOrWrite(	SHADOW_TBL[pageID].diskID,
-										SHADOW_TBL[pageID].sectorID,
-										(char*)&MEMORY[SHADOW_TBL[pageID].frameID * PGSIZE], 
-										DISK_WRITE );
-
-					if(SHADOW_TBL[status].diskID > -1 && SHADOW_TBL[status].isUsed == 1) // pageID = status has its item in shadow table
-					{
-						// new pageID has content in shadow table
-						disk_readOrWrite(	SHADOW_TBL[status].diskID,
-											SHADOW_TBL[status].sectorID ,//+ 8, // HERE?
-											(char*)&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 
-											DISK_READ );
-						//memcpy(&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 64*status, PGSIZE);
-						SHADOW_TBL[status].diskID = -1;
-						SHADOW_TBL[status].sectorID = -1;
-						SHADOW_TBL[status].isUsed == 0;
-					}
-
-					// make the page valid
-					Z502_PAGE_TBL_ADDR[status] = (UINT16)frameID | 0x8000;
-					frameQueueCursor->node->pageID = status; // new pageID
-					frameQueueCursor->node->pid = currentPCBNode->pid;
-					frameQueueCursor->node->isAvailable = 0;
-					//victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
-
-					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
-
-					break;
-				}
-				else
-				{
-					// set reference bit 0
-					Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] = (UINT16)Z502_PAGE_TBL_ADDR[frameQueueCursor->node->pageID] & 0xDFFF;
-
-					frameQueueCursor = frameQueueCursor->next;
-					if(frameQueueCursor == NULL)
-					{
-						frameQueueCursor = frmQueue->next;
-					}
-				}
+				frameQueueCursor = frameQueueCursor->next;
+				randPick--;
 			}
+
+			pageID  = frameQueueCursor->node->pageID; // old pageID, we will write its frame info to disk
+			frameID = frameQueueCursor->node->frameID;
+
+			// if reference bit is not set, swap it here
+			// store the old info into disk
+
+			diskID = currentPCBNode->pid + 1;//((frameQueueCursor->node->pageID & 0x0018) >> 3) + 1;
+			sectorID = pageID;// (frameQueueCursor->node->pageID & 0x0FE0) >> 5;
+
+			SHADOW_TBL[pageID].diskID = diskID;
+			SHADOW_TBL[pageID].sectorID = sectorID;
+			SHADOW_TBL[pageID].frameID = frameID;
+			SHADOW_TBL[pageID].isUsed = 1;
+
+			Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
+
+			disk_readOrWrite(	SHADOW_TBL[pageID].diskID,
+								SHADOW_TBL[pageID].sectorID,
+								(char*)&MEMORY[SHADOW_TBL[pageID].frameID * PGSIZE], 
+								DISK_WRITE );
+
+			if(SHADOW_TBL[status].diskID > -1 && SHADOW_TBL[status].isUsed == 1) // pageID = status has its item in shadow table
+			{
+				// new pageID has content in shadow table
+				disk_readOrWrite(	SHADOW_TBL[status].diskID,
+									SHADOW_TBL[status].sectorID ,//+ 8, // HERE?
+									(char*)&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 
+									DISK_READ );
+				//memcpy(&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 64*status, PGSIZE);
+				SHADOW_TBL[status].diskID = -1;
+				SHADOW_TBL[status].sectorID = -1;
+				SHADOW_TBL[status].isUsed == 0;
+			}
+
+			// make the page valid
+			Z502_PAGE_TBL_ADDR[status] = (UINT16)frameID | 0x8000;
+			frameQueueCursor->node->pageID = status; // new pageID
+			frameQueueCursor->node->pid = currentPCBNode->pid;
+			frameQueueCursor->node->isAvailable = 0;
+			//victim = (frameQueueCursor->node->pageID + 1) % Z502_PAGE_TBL_LENGTH;
+
+			//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
+
 		}
 		memory_printer();
 	}
