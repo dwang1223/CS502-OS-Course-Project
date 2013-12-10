@@ -1231,8 +1231,8 @@ void fault_handler( void )
 	long		frameID;
 	long		pageID;
 	static int  flag = 0;
-	static int sectorIDtoAssign = 0;
-
+	static int	sectorIDtoAssign = 0;
+	int			randPick;
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -1280,6 +1280,7 @@ void fault_handler( void )
 		if(flag == 1)  // this means all frames have been used before
 		{
 			// Replace Algorithm
+
 			for(i = victim; i < (int)PHYS_MEM_PGS; i++)
 			{
 				if( (UINT16)(Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0x2000) != 0x2000 )
@@ -1295,17 +1296,17 @@ void fault_handler( void )
 					sectorID = sectorIDtoAssign++; //pageID; //(frmArray[i].pageID & 0x0FE0) >> 5;
 
 
-					SHADOW_TBL[sectorID].diskID = diskID;
-					SHADOW_TBL[sectorID].sectorID = sectorID;
-					SHADOW_TBL[sectorID].frameID = frameID;
-					SHADOW_TBL[sectorID].pageID = pageID;
-					SHADOW_TBL[sectorID].isUsed = 1;
+					SHADOW_TBL[pageID].diskID = diskID;
+					SHADOW_TBL[pageID].sectorID = sectorID;
+					SHADOW_TBL[pageID].frameID = frameID;
+					//SHADOW_TBL[pageID].pageID = pageID;
+					SHADOW_TBL[pageID].isUsed++;
 
 					Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
 
-					disk_readOrWrite(	SHADOW_TBL[sectorID].diskID,
-										SHADOW_TBL[sectorID].sectorID,
-										(char*)&MEMORY[SHADOW_TBL[sectorID].frameID * PGSIZE], 
+					disk_readOrWrite(	SHADOW_TBL[pageID].diskID,
+										SHADOW_TBL[pageID].sectorID,
+										(char*)&MEMORY[SHADOW_TBL[pageID].frameID * PGSIZE], 
 										DISK_WRITE );
 
 					/************************************************************************/
@@ -1313,22 +1314,27 @@ void fault_handler( void )
 					/* if it has info in disk, restore it
 					/************************************************************************/
 
-					for(j = sectorIDtoAssign-1; j >= 0; j--)
+					
+					if( SHADOW_TBL[status].isUsed > 0 && SHADOW_TBL[j].diskID > -1)
 					{
-						if(SHADOW_TBL[j].pageID == status && SHADOW_TBL[j].isUsed == 1 && SHADOW_TBL[j].diskID > -1)//SHADOW_TBL[status].diskID > -1 || SHADOW_TBL[status].isUsed == 1) // pageID = status has its item in shadow table
+						// new pageID has content in shadow table
+						disk_readOrWrite(	SHADOW_TBL[status].diskID,
+											SHADOW_TBL[status].sectorID ,//+ 8, // HERE?
+											(char*)&MEMORY[(SHADOW_TBL[status].frameID) * PGSIZE], 
+											DISK_READ );
+						
+						SHADOW_TBL[status].isUsed--;
+						if(SHADOW_TBL[status].isUsed < 1)
 						{
-							// new pageID has content in shadow table
-							disk_readOrWrite(	SHADOW_TBL[j].diskID,
-												SHADOW_TBL[j].sectorID ,//+ 8, // HERE?
-												(char*)&MEMORY[(SHADOW_TBL[j].frameID) * PGSIZE], 
-												DISK_READ );
-
-							SHADOW_TBL[j].diskID = -1;
-							SHADOW_TBL[j].sectorID = -1;
-							SHADOW_TBL[j].isUsed == 0;
-							break;
+							SHADOW_TBL[status].diskID = -1;
+							SHADOW_TBL[status].sectorID = -1;
+							SHADOW_TBL[status].isUsed = 0;
 						}
+						
+						
+						break;
 					}
+					
 					// make the page valid
 					Z502_PAGE_TBL_ADDR[status] = (UINT16)frameID | 0x8000;
 					frmArray[i].pageID = status; // new pageID
@@ -1337,6 +1343,7 @@ void fault_handler( void )
 
 					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
 					printf("Old:%4ld, New:%4d, frameID: %2d diskID: %2ld, sector: %4ld\n", pageID, status, frameID, diskID, sectorID);
+
 					victim = (i + 1) % PHYS_MEM_PGS;
 					break;
 				}
@@ -1658,7 +1665,7 @@ void diskInit(void)
 void shadowTableInit( void )
 {
 	int i = 0;
-	for(i = 0; i < 1208; i++)
+	for(i = 0; i < 1024; i++)
 	{
 		SHADOW_TBL[i].isUsed = 0;
 		SHADOW_TBL[i].diskID = -1;

@@ -1708,9 +1708,9 @@ void test2f(void) {
             MEM_READ(Z502_REG3, &Z502_REG2);
 
             //if (Loops % DISPLAY_GRANULARITY2 == 0)
-                printf("PID= %ld  address= %ld   written= %ld   read= %ld\n",
+              printf("PID= %ld  address= %ld   written= %ld   read= %ld\n",
                         Z502_REG4, Z502_REG3, Z502_REG1, Z502_REG2);
-            if (Z502_REG2 != Z502_REG1)
+              if (Z502_REG2 != Z502_REG1)
                 printf("ERROR HAS OCCURRED: READ NOT SAME AS WRITE.\n");
         }   // End of for Loops
 
