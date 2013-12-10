@@ -104,8 +104,8 @@ int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
 int enableMPrinter = 0;
-int enablePrinter = 0;
-int enableDiskPrint = 0;
+int enablePrinter = 1;
+int enableDiskPrint = 1;
 static INT32 victim = 0;
 shadowTable SHADOW_TBL[1024];
 
@@ -1057,9 +1057,14 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	CALL(MEM_WRITE(Z502DiskSetAction, &diskStatus));
 	diskStatus = 0;                        // Must be set to 0
 	CALL(MEM_WRITE(Z502DiskStart, &diskStatus));
-	
-	add_currentPCB_to_diskQueue_head(diskID, sectorID, buffer, readOrWrite);
-	dispatcher();
+
+	diskStatus = check_disk_status(diskID);
+
+	if (diskStatus == DEVICE_IN_USE)
+	{
+		add_currentPCB_to_diskQueue_head(diskID, sectorID, buffer, readOrWrite);
+		dispatcher();
+	}
 }
 void disk_readOrWrite_without_dispatch(long diskID, long sectorID, char* buffer, int readOrWrite)
 {
@@ -1280,11 +1285,13 @@ void fault_handler( void )
 		if(flag == 1)  // this means all frames have been used before
 		{
 			// Replace Algorithm
+			// change second to FIFO
 
-			for(i = victim; i < (int)PHYS_MEM_PGS; )
+			i = victim;
+			/*for(i = victim; i < (int)PHYS_MEM_PGS; )
 			{
-				if( (UINT16)(Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0x2000) != 0x2000 )
-				{
+			if( (UINT16)(Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0x2000) != 0x2000 )
+			{*/
 					/************************************************************************/
 					/* Deal with old pageID    
 					/* Write its info into disk
@@ -1348,21 +1355,22 @@ void fault_handler( void )
 					frmArray[i].pid = currentPCBNode->pid;
 					frmArray[i].isAvailable = 0;
 
-					victim = (i + 1) % PHYS_MEM_PGS;
+					//victim = (i + 1) % PHYS_MEM_PGS;
+					victim = (victim + 1) % PHYS_MEM_PGS;
 
 					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
-					printf("Old:%4ld, New:%4d, frameID: %2d diskID: %2ld, sector: %4ld\n", pageID*16, status*16, frameID, diskID, sectorID);
+					//printf("Old:%4ld, New:%4d, frameID: %2d diskID: %2ld, sector: %4ld\n", pageID*16, status*16, frameID, diskID, sectorID);
 
 					
-					break;
-				}
-				else
-				{
-					// set reference bit 0
-					Z502_PAGE_TBL_ADDR[frmArray[i].pageID] = (UINT16)Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0xDFFF;
-				}
-				i = ( i + 1 ) % 64;
-			}
+				//	break;
+				//}
+				//else
+				//{
+				//	// set reference bit 0
+				//	Z502_PAGE_TBL_ADDR[frmArray[i].pageID] = (UINT16)Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0xDFFF;
+				//}
+				//i = ( i + 1 ) % 64;
+			//}
 		}
 		READ_MODIFY(MEMORY_INTERLOCK_BASE+12, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 		memory_printer();
