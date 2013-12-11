@@ -96,7 +96,7 @@ Test Results
 	a) Test program 2a runs and gives expected output.
 	b) Test program 2b runs and gives expected output.
     c) Test program 2c runs and gives expected output.
-    d) Test program 2d runs and in most case it gives expected output.
+    d) Test program 2d runs and in most case it gives reasonable output.
     e) Test program 2e runs and gives expected output.
     f) Test program 2f runs and gives expected output.
-	g) Test program 2g runs and gives reasonable output with 2 error messages.   
+	g) Test program 2g runs and gives unreasonable output[PCB lost during processing].   
