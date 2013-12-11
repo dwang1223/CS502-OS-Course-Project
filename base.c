@@ -103,9 +103,9 @@ INT32 LockResult, LockResult2, LockResultPrinter, TimeLockResult;
 int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
-int enableMPrinter = 1;
-int enablePrinter = 0;
-int enableDiskPrint = 0;
+int enableMPrinter = 0;
+int enablePrinter = 1;
+int enableDiskPrint = 1;
 static INT32 victim = 0;
 shadowTable SHADOW_TBL[1024];
 
@@ -1291,7 +1291,7 @@ void fault_handler( void )
 
 			//victim = status % 64;
 			//victim = victim;
-			victim = 2*currentPCBNode->pid + 1;;
+			victim = currentPCBNode->pid + 1;;
 			/*for(i = victim; i < (int)PHYS_MEM_PGS; )
 			{
 			if( (UINT16)(Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0x2000) != 0x2000 )
@@ -1814,7 +1814,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2b, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
