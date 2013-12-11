@@ -64,8 +64,8 @@ I have tried three(maybe I can say 4) page replacement algorithms: **FIFO**, **S
 ![Use only one fix frame](images/test2e_fixed.png "Use only one fix frame")     <br/>
 ![FIFO](images/test2e_fifo.png "FIFO")     <br/>
 ![Second Chance](images/test2e_secondChance.png "Second Chance")     <br/>
-1. Surprising, that in **test2e** only one fix frame to do page replacement has a better profermance than other two in Page Fault count, Total execution time, and Read/Write disk times. I think that it happens because the page number of data to read/write is sequential(not ramdon), therefore this issue will not happen in test2f.    
-2. FIFO & Second Chance have almost the same perfermance for test2e, because after the first round(set referrence bit to 0), second chance is the same as FIFO. Therefore, second chance costs 50 more execution time from above images.     
+1. Surprising, that in **test2e** only one fix frame to do page replacement has a better profermance than other two in Page Fault count, Total execution time, and Read/Write disk times. I think that it happens because the page number of data to read/write is sequential(not ramdon), therefore this issue will not happen in test2f.    <br/>
+2. FIFO & Second Chance have almost the same perfermance for test2e, because after the first round(set referrence bit to 0), second chance is the same as FIFO. Therefore, second chance costs 50 more execution time from above images.     <br/>
 3. Below is an image od comparison for different algorithms. And we can find that fixed frame almost has the same performance with Second Chance. FIFO has the worst performance.     
 ![test2f comparision](images/test2f_comparision.png "test2f comparision")     <br/>
 ###6. Anomalies 
@@ -89,7 +89,7 @@ Test Format
      I have added schedule_printer() & memory_printer() in my code.
 
 Below is a demo screenshot for **test2f**.    
-![Screenshot for test2f](images/test2f.png "Screenshot for test2f")
+![Screenshot for test2f](images/test2f.png "Screenshot for test2f")     
 
 Test Results
 ======
