@@ -1049,6 +1049,8 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 	Queue tmpNode = (QUEUE*)malloc(sizeof(QUEUE));
 	diskStatus = check_disk_status(diskID);
 
+	//if (diskID > 10) return;
+
 	if (diskStatus == DEVICE_FREE)        // Disk hasn't been used - should be free
 	{
 		// TODO: It can be blank here
@@ -1257,7 +1259,7 @@ void fault_handler( void )
 	static int  isframeAllUsedFlag = 0;
 	static int	sectorIDtoAssign = 0;
 	static int	printCtl = 0;
-
+	static int  realVictim = 0;
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
     // Set this device as target of our query
@@ -1307,12 +1309,13 @@ void fault_handler( void )
 
 		if(isframeAllUsedFlag == 1)  // this means all frames have been used before
 		{
-			/************************************************************************
+			/******************************************************************************************************
 			  Replace Algorithm (Modify victim, you can experience different page replacement algorithms)    
 					1. Second Chance
 					2. FIFO
 					3. Use one fixed frame to do all swaps
-			************************************************************************/
+					[Attention: Second Chance & FIFO cannot work both on test2e and test2f]
+			******************************************************************************************************/
 
 			//victim = status % 64;
 
@@ -1320,7 +1323,7 @@ void fault_handler( void )
 
 			// if you enable the for loop below, you can get second chance algorithm
 
-			/*for(i = victim; i < (int)PHYS_MEM_PGS; )
+			/*for (victim = realVictim; victim < (int)PHYS_MEM_PGS;)
 			{
 			if( (UINT16)(Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0x2000) != 0x2000 )
 			{*/
@@ -1382,22 +1385,22 @@ void fault_handler( void )
 					frmArray[victim].pid = currentPCBNode->pid;
 					frmArray[victim].isAvailable = 0;
 
-					//victim = (i + 1) % PHYS_MEM_PGS;
+					//realVictim = (victim + 1) % PHYS_MEM_PGS;
 					victim = (victim + 1) % PHYS_MEM_PGS;
 
 					//printf("Old:%4ld, New:%4d, frameID: %d\n", pageID, status, frameID);
 					//printf("  Old:%4ld, sector: %2ld, New:%4d, sector: %4ld, frameID: %2d \n", pageID, sectorID, status, SHADOW_TBL[status].sectorID, frameID);
 
 					
-				//	break;
-				//}
-				//else
-				//{
-				//	// set reference bit 0
-				//	Z502_PAGE_TBL_ADDR[frmArray[i].pageID] = (UINT16)Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0xDFFF;
-				//}
-				//i = ( i + 1 ) % 64;
-			//}
+		//			break;
+		//		}
+		//		else
+		//		{
+		//			// set reference bit 0
+		//			Z502_PAGE_TBL_ADDR[frmArray[victim].pageID] = (UINT16)Z502_PAGE_TBL_ADDR[frmArray[victim].pageID] & 0xDFFF;
+		//		}
+		//		victim = (victim + 1) % 64;
+		//	}
 		}
 
 		memory_printer();
