@@ -103,10 +103,15 @@ INT32 LockResult, LockResult2, LockResultPrinter, TimeLockResult;
 int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
+
+// three toggle for printer 1 means on, 0 for off
 int enableMPrinter = 0;
 int enablePrinter = 0;
 int enableDiskPrint = 0;
+int enableFaultPrint = 0;
 static INT32 victim = 0;
+
+// shadow table, one for each process
 shadowTable SHADOW_TBL[6][1024];
 
 int randomInt(int min, int max)
@@ -115,120 +120,124 @@ int randomInt(int min, int max)
 }
 void memory_printer()
 {
-	//DiskQueue diskQueueCursor;
 	int i = 0, state = 0;
-	//int diskIndex = 1;
-	if (enableMPrinter == 0)
+	static int printCtl = 0;
+	if (enableMPrinter != 0 && printCtl % enableMPrinter == 0)
 	{
-		return;
-	}
-	READ_MODIFY(MEMORY_INTERLOCK_BASE + 14, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
-	for (i = 0; i < (int)PHYS_MEM_PGS; i++)
-	{
-		if(frmArray[i].pageID >= 0 && frmArray[i].pageID <= 1023)
+		READ_MODIFY(MEMORY_INTERLOCK_BASE + 14, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
+		for (i = 0; i < (int)PHYS_MEM_PGS; i++)
 		{
+			if (frmArray[i].pageID >= 0 && frmArray[i].pageID <= 1023)
+			{
 
-		
-		state = ((Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & PTBL_VALID_BIT) >> 13) + 
-				((Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & PTBL_MODIFIED_BIT) >> 13) +
-				((Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & PTBL_REFERENCED_BIT) >> 13);
 
-		MP_setup(	frmArray[i].frameID,
+				state = ((Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & PTBL_VALID_BIT) >> 13) +
+					((Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & PTBL_MODIFIED_BIT) >> 13) +
+					((Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & PTBL_REFERENCED_BIT) >> 13);
+
+				MP_setup(frmArray[i].frameID,
 					frmArray[i].pid,
 					frmArray[i].pageID,
 					state
-				);
+					);
+			}
 		}
+
+		MP_print_line();
+		// reset action to NULL
+
+		printf("\n");
+		READ_MODIFY(MEMORY_INTERLOCK_BASE + 14, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
 	}
-
-	MP_print_line();
-	// reset action to NULL
-
-	printf("\n");
-	READ_MODIFY(MEMORY_INTERLOCK_BASE + 14, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
+	printCtl++;
 }
 void schedule_printer()
 {
 	Queue queueCursor;
 	int count = 0;
 	long counter = 655350;
-	//int diskIndex = 1;
-	if(enablePrinter == 0)
+	static int printCtl = 0;
+	if (enablePrinter != 0 && printCtl % enablePrinter == 0)
+	{
+
+
+		READ_MODIFY(MEMORY_INTERLOCK_BASE + 11, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
+		printf("\n");
+		SP_print_header();
+		SP_setup_action(SP_ACTION_MODE, action);
+
+		if (currentPCBNode != NULL)
+		{
+			SP_setup(SP_RUNNING_MODE, currentPCBNode->pid);
+		}
+		else
+		{
+			SP_setup(SP_RUNNING_MODE, 99);
+		}
+
+
+		// print information of readyQueue, if the nodes in readyQueue are more than 10, just print the first 10
+		queueCursor = readyQueue;
+		while (queueCursor != NULL && queueCursor->next != NULL)
+		{
+			queueCursor = queueCursor->next;
+			count++;
+			SP_setup(SP_READY_MODE, queueCursor->node->pid);
+			if (count >= 10)
+			{
+				count = 0;
+				break;
+			}
+		}
+
+		// print information of timerQueue, if the nodes in timerQueue are more than 10, just print the first 10
+		queueCursor = timerQueue;
+		while (queueCursor != NULL && queueCursor->next != NULL)
+		{
+			queueCursor = queueCursor->next;
+			count++;
+			SP_setup(SP_WAITING_MODE, queueCursor->node->pid);
+			if (count >= 10)
+			{
+				count = 0;
+				break;
+			}
+		}
+
+		// print information of suspendQueue, if the nodes in suspendQueue are more than 10, just print the first 10
+
+		queueCursor = suspendQueue;
+		while (queueCursor != NULL && queueCursor->next != NULL)
+		{
+			queueCursor = queueCursor->next;
+			count++;
+			SP_setup(SP_SUSPENDED_MODE, queueCursor->node->pid);
+			if (count >= 10)
+			{
+				count = 0;
+				break;
+			}
+		}
+
+		SP_print_line();
+		// reset action to NULL
+		memset(action, '\0', 8);
+		printf("\n");
+		if (enableDiskPrint != 0)
+		{
+			disk_queue_print();
+		}
+
+		READ_MODIFY(MEMORY_INTERLOCK_BASE + 11, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResultPrinter);
+	}
+	else
 	{
 		while (counter > 0)
 		{
 			counter--;
 		}
-		return;
 	}
-	READ_MODIFY(MEMORY_INTERLOCK_BASE+11, DO_LOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
-	printf("\n");
-	SP_print_header();
-	SP_setup_action(SP_ACTION_MODE, action);
-
-	if(currentPCBNode != NULL)
-	{
-		SP_setup(SP_RUNNING_MODE, currentPCBNode->pid);
-	}
-	else
-	{
-		SP_setup(SP_RUNNING_MODE, 99);
-	}
-	
-
-	// print information of readyQueue, if the nodes in readyQueue are more than 10, just print the first 10
-	queueCursor = readyQueue;
-	while(queueCursor != NULL && queueCursor->next != NULL)
-	{
-		queueCursor = queueCursor->next;
-		count++;
-		SP_setup(SP_READY_MODE, queueCursor->node->pid);
-		if(count >= 10)
-		{
-			count = 0;
-			break;
-		}
-	}
-
-	// print information of timerQueue, if the nodes in timerQueue are more than 10, just print the first 10
-	queueCursor = timerQueue;
-	while(queueCursor != NULL && queueCursor->next != NULL)
-	{
-		queueCursor = queueCursor->next;
-		count++;
-		SP_setup(SP_WAITING_MODE, queueCursor->node->pid);
-		if(count >= 10)
-		{
-			count = 0;
-			break;
-		}
-	}
-
-	// print information of suspendQueue, if the nodes in suspendQueue are more than 10, just print the first 10
-	
-	queueCursor = suspendQueue;
-	while(queueCursor != NULL && queueCursor->next != NULL)
-	{
-		queueCursor = queueCursor->next;
-		count++;
-		SP_setup( SP_SUSPENDED_MODE, queueCursor->node->pid );
-		if(count >= 10)
-		{
-			count = 0;
-			break;
-		}
-	}
-
-	SP_print_line();
-	// reset action to NULL
-	memset(action,'\0',8);
-	printf("\n");
-	if (enableDiskPrint != 0)
-	{
-		disk_queue_print();
-	}
-	
-	READ_MODIFY(MEMORY_INTERLOCK_BASE+11, DO_UNLOCK, SUSPEND_UNTIL_LOCKED,&LockResultPrinter);
+	printCtl++;
 }
 void disk_queue_print()
 {
@@ -1029,6 +1038,11 @@ int check_disk_status(long diskID)
 	MEM_READ(Z502DiskStatus, &diskStatus);
 	return diskStatus;
 }
+/************************************************************************
+ * This function is used for disk read and write
+ * readOrWrite = 0 means disk read
+ * readOrWrite = 1 means disk write
+************************************************************************/
 void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 {
 	INT32 diskStatus;
@@ -1068,6 +1082,11 @@ void disk_readOrWrite(long diskID, long sectorID, char* buffer, int readOrWrite)
 		dispatcher();
 	//}
 }
+/************************************************************************
+ * This function is not used in my program, just keep it for future use 
+ * read/write disk without dequeue or enqueue 
+ * No interrupt will be trigged for this function
+ ************************************************************************/
 void disk_readOrWrite_without_dispatch(long diskID, long sectorID, char* buffer, int readOrWrite)
 {
 	INT32 diskStatus;
@@ -1095,7 +1114,6 @@ void disk_readOrWrite_without_dispatch(long diskID, long sectorID, char* buffer,
 		diskStatus = check_disk_status(diskID);
 	}
 }
-
 void disk_node_transfer( INT32 diskID )
 {
 	Queue queueNode;
@@ -1236,9 +1254,9 @@ void fault_handler( void )
 	INT32		isFound = 0;
 	long		frameID;
 	long		pageID;
-	static int  flag = 0;
+	static int  isframeAllUsedFlag = 0;
 	static int	sectorIDtoAssign = 0;
-	//int			randPick;
+	static int	printCtl = 0;
 
     // Get cause of interrupt
     MEM_READ(Z502InterruptDevice, &device_id );
@@ -1247,7 +1265,11 @@ void fault_handler( void )
     // Now read the status of this device
     MEM_READ(Z502InterruptStatus, &status );
 
-	//printf( "Fault_handler: Found vector type %d with value %d\n", device_id, status );
+	if (enableFaultPrint != 0 && printCtl % enableFaultPrint == 0)
+	{
+		printf("Fault_handler: Found vector type %d with value %d\n", device_id, status);
+	}
+	printCtl++;
 
 	if(device_id != 4)
 	{
@@ -1256,19 +1278,15 @@ void fault_handler( void )
 			//printf("\nPage size overflow!\n\n");
 			Z502Halt();
 		}
-		else
-		{
-			//printf("Page ID:%d\t", status);
-		}
 
+		// Initial page table here, if it is null
 		if (Z502_PAGE_TBL_ADDR == NULL)
 		{
 			Z502_PAGE_TBL_LENGTH = 1024;
 			Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
 		}
 
-		//READ_MODIFY(MEMORY_INTERLOCK_BASE+12, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
-		if (flag == 0 )
+		if (isframeAllUsedFlag == 0 )
 		{
 			for(i = 0; i < (int)PHYS_MEM_PGS; i++)
 			{
@@ -1283,18 +1301,25 @@ void fault_handler( void )
 					break;
 				}
 			}
-
-			if(i == 64) flag = 1;
+			// if i == 64, it means all frames have been occupied
+			if(i == 64) isframeAllUsedFlag = 1;
 		}
 
-		if(flag == 1)  // this means all frames have been used before
+		if(isframeAllUsedFlag == 1)  // this means all frames have been used before
 		{
-			// Replace Algorithm
-			// change second to FIFO
+			/************************************************************************
+			  Replace Algorithm (Modify victim, you can experience different page replacement algorithms)    
+					1. Second Chance
+					2. FIFO
+					3. Use one fixed frame to do all swaps
+			************************************************************************/
 
 			//victim = status % 64;
-			//victim = victim;
-			victim = currentPCBNode->pid + 1;;
+
+			victim = currentPCBNode->pid + 1; // if you comment this line, it algorithm will be FIFO
+
+			// if you enable the for loop below, you can get second chance algorithm
+
 			/*for(i = victim; i < (int)PHYS_MEM_PGS; )
 			{
 			if( (UINT16)(Z502_PAGE_TBL_ADDR[frmArray[i].pageID] & 0x2000) != 0x2000 )
@@ -1314,6 +1339,7 @@ void fault_handler( void )
 					
 					/*if(SHADOW_TBL[pageID].isUsed < 1)
 					{*/
+						// add old page's info to shadow table
 						SHADOW_TBL[currentPCBNode->pid][pageID].diskID = diskID;
 						SHADOW_TBL[currentPCBNode->pid][pageID].sectorID = sectorID;
 						SHADOW_TBL[currentPCBNode->pid][pageID].frameID = frameID;
@@ -1332,7 +1358,8 @@ void fault_handler( void )
 					/* if it has info in disk, restore it
 					/************************************************************************/
 
-					
+					// check whether I need to restore data from disk
+
 					if (SHADOW_TBL[currentPCBNode->pid][status].isUsed > 0 && SHADOW_TBL[currentPCBNode->pid][status].frameID > -1)
 					{
 						// new pageID has content in shadow table
@@ -1349,6 +1376,8 @@ void fault_handler( void )
 					
 					// make the page valid
 					Z502_PAGE_TBL_ADDR[status] = (UINT16)frameID | 0x8000;
+
+					// update frame info
 					frmArray[victim].pageID = status; // new pageID
 					frmArray[victim].pid = currentPCBNode->pid;
 					frmArray[victim].isAvailable = 0;
@@ -1370,7 +1399,7 @@ void fault_handler( void )
 				//i = ( i + 1 ) % 64;
 			//}
 		}
-		//READ_MODIFY(MEMORY_INTERLOCK_BASE+12, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+
 		memory_printer();
 	}
 
@@ -1589,7 +1618,7 @@ void svc( SYSTEM_CALL_DATA *SystemCallData )
 		case SYSNUM_DISK_READ:
 			/*strncpy(action,"DSKREAD",8);
 			schedule_printer();*/
-			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 3, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+
 			diskID = SystemCallData->Argument[0];
 			sectorID = SystemCallData->Argument[1];
 			disk_readOrWrite(	diskID,
@@ -1598,17 +1627,16 @@ void svc( SYSTEM_CALL_DATA *SystemCallData )
 								DISK_READ );
 
 			memcpy (SystemCallData->Argument[2], buffer, PGSIZE);
-			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 3, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 			break;
 	
 		case SYSNUM_DISK_WRITE:
 			/*strncpy(action,"DSKWRT",8);
 			schedule_printer();*/
-			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 4, DO_LOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+
 			diskID = SystemCallData->Argument[0];
 			sectorID = SystemCallData->Argument[1];
 			memcpy(buffer, SystemCallData->Argument[2], PGSIZE);
-			//READ_MODIFY(MEMORY_INTERLOCK_BASE + 4, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
+
 			disk_readOrWrite(	diskID,
 								sectorID,
 								buffer,
@@ -1733,16 +1761,14 @@ void osInit( int argc, char *argv[]  ) {
 	if(argc > 1 )
 	{
 		strncpy(test,argv[1],6);
-		//strncpy(test,"test1l",6);
 	}
 	else
 	{
-		//fgets (test, 20, stdin);
-		strncpy(test,"test2b",6);
+		fgets (test, 20, stdin);
 	}
 
     /*  Determine if the switch was set, and if so go to demo routine.  */
-	/*
+	
     if (strncmp( test, "sample", 6 ) == 0 ) 
 	{
         Z502MakeContext( &next_context, (void *)sample_code, KERNEL_MODE );
@@ -1806,15 +1832,56 @@ void osInit( int argc, char *argv[]  ) {
 		enablePrinter = 0;
 		Z502MakeContext( &next_context, (void *)test1m, USER_MODE );
 	}
+	else if (strncmp(test, "test2a", 6) == 0)
+	{
+		enableMPrinter = 1;
+		enableFaultPrint = 1;
+		Z502MakeContext(&next_context, (void *)test2a, USER_MODE);
+	}
+	else if (strncmp(test, "test2b", 6) == 0)
+	{
+		enableMPrinter = 1;
+		enableFaultPrint = 1;
+		Z502MakeContext(&next_context, (void *)test2b, USER_MODE);
+	}
+	else if (strncmp(test, "test2c", 6) == 0)
+	{
+		enablePrinter = 1;
+		enableDiskPrint = 1;
+		Z502MakeContext(&next_context, (void *)test2c, USER_MODE);
+	}
+	else if (strncmp(test, "test2d", 6) == 0)
+	{
+		enablePrinter = 21;
+		enableFaultPrint = 10;
+		enableDiskPrint = 1;
+		Z502MakeContext(&next_context, (void *)test2d, USER_MODE);
+	}
+	else if (strncmp(test, "test2e", 6) == 0)
+	{
+		enablePrinter = 10;
+		enableFaultPrint = 10;
+		enableMPrinter = 20;
+		//enableDiskPrint = 1;
+		Z502MakeContext(&next_context, (void *)test2e, USER_MODE);
+	}
+	else if (strncmp(test, "test2f", 6) == 0)
+	{
+		enableFaultPrint = 10;
+		enableMPrinter = 100;
+		Z502MakeContext(&next_context, (void *)test2f, USER_MODE);
+	}
+	else if (strncmp(test, "test2g", 6) == 0)
+	{
+		Z502MakeContext(&next_context, (void *)test2g, USER_MODE);
+	}
 	else
 	{
 		printf("Illegal Input\n");
 		exit(0);
 	}
-	*/
-	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
+	// generate current node (now it is the root node)
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
