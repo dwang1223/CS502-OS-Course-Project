@@ -40,7 +40,7 @@ This function is used to check the disk queue, and dequeue the nodes who already
 ![Disk Write](images/diskWrite.jpg "Disk Write")  
 3. **`interrupt_handler`**  
 In phase 2, the `interrupt_handler()` should both deals with timer interrupt & **I/O interrupt**[I have introduced timer interrupt in phase 1, so I just give explanation for I/O interrupt here].     
-![I/O Interrupt](images/interrupt.jpg "I/O Interrupt")  
+![I/O Interrupt](images/interrupt.png "I/O Interrupt")  
 4. **`fault_handler`**    
 **fault_handler** is very important in phase 2, as I find that except for test2c and test2d, all other test case rely on it for implementation.     
 In my program, I tried three page replacement algorithms of **Second-Chance**, **FIFO**, and one other **weird way** -- use only one frame to do all the replacement.
@@ -54,8 +54,13 @@ Below, I will show how page tabke, frame table and shadow table interacts with e
 2. Frame table with size 64 is shared by all processes -- Frame struct is defined by me, but I recognize it as a map for MEMORY array defined by haedware.    
 3. Each process has an independent shadow table with size 1024, which store  the disk location for the page that is replaced.    
 4. **Page table** will be initialized when the first page fault happens in `fault_handler()`, while frame table and shadow table are initialized when OS502 is starting.     
-![](images/justification.png)
+![](images/justification.png)<br/>
 
+----------
+
+![](images/shadowTable.png)
+
+----------
 
 I am trying to make my ideas as clear as possible, and wish I make it. By the way, you can also find more details in my code, as I have add tons of comments there. Also, you can contact me by hzhou@wpi.edu for more infomation.       
 
@@ -64,14 +69,15 @@ I have tried three(maybe I can say 4) page replacement algorithms: **FIFO**, **S
 ![Use only one fix frame](images/test2e_fixed.png "Use only one fix frame")     <br/>
 ![FIFO](images/test2e_fifo.png "FIFO")     <br/>
 ![Second Chance](images/test2e_secondChance.png "Second Chance")     <br/>
-1. Surprising, that in **test2e** only one fix frame to do page replacement has a better profermance than other two in Page Fault count, Total execution time, and Read/Write disk times. I think that it happens because the page number of data to read/write is sequential(not ramdon), therefore this issue will not happen in test2f.    <br/>
-2. FIFO & Second Chance have almost the same perfermance for test2e, because after the first round(set referrence bit to 0), second chance is the same as FIFO. Therefore, second chance costs 50 more execution time from above images.     <br/>
-3. Below is an image od comparison for different algorithms. And we can find that fixed frame almost has the same performance with Second Chance. FIFO has the worst performance.     
-![test2f comparision](images/test2f_comparision.png "test2f comparision")     <br/>
-###6. Anomalies 
-1. Actually I understand how lock works, but I cannot use it well, which makes my program vulnerable. With or without schedule printer will bring very different result at the end, especially for multi-processes tests.     
-2. For some issues, I believe I have very solid logic, but when I implemented for my program, it failed. Seems that there is a naughty "ghost" in this OS, who likes bringing troubles for me.  -- Good news, I can find another way or do a bit sacrifice for implementing that function [except for test2g :(  ].      
-3. For test2d, only disk 1, 2 and 3 are used, but in the output I find that I have some disk operation on disk 11( Why 11? Actually, 11 is the largest disk index I checked in interrupt hanlder. 11 is changed with that.).    
+1. Surprising, that in **test2e** only one fix frame to do page replacement has a better profermance than other two in Page Fault count, Total execution time, and Read/Write disk times. I think that it happens because the page number of data to read/write is sequential(not ramdon), therefore this issue will not happen in test2f.    <br/><br/>
+2. FIFO & Second Chance have almost the same perfermance for test2e, because after the first round(set referrence bit to 0), second chance is the same as FIFO. Therefore, second chance costs 50 more execution time from above images.     <br/><br/>
+3. Below is an image od comparison for different algorithms. And we can find that fixed frame almost has the same performance with Second Chance. FIFO has the worst performance.   <br/>  
+![test2f comparision](images/test2f_comparision.png "test2f comparision")     <br/>     
+
+###6. Anomalies    
+1. Actually I understand how lock works, but I cannot use it well, which makes my program vulnerable. With or without schedule printer will bring very different result at the end, especially for multi-processes tests.<br/><br/>    
+2. For some issues, I believe I have very solid logic, but when I implemented for my program, it failed. Seems that there is a naughty "ghost" in this OS, who likes bringing troubles for me.  -- Good news, I can find another way or do a bit sacrifice for implementing that function [except for test2g :(  ].  <br/><br/>      
+3. For test2d, only disk 1, 2 and 3 are used, but in the output I find that I have some disk operation on disk 11( Why 11? Actually, 11 is the largest disk index I checked in interrupt hanlder. 11 is changed with that).    
 ![test2d disk 11](images/test2d.png "test2d disk11")
 
 ###7. Appendix:    
@@ -99,4 +105,4 @@ Test Results
     d) Test program 2d runs and in most case it gives reasonable output.
     e) Test program 2e runs and gives expected output.
     f) Test program 2f runs and gives expected output.
-	g) Test program 2g runs and gives unreasonable output[PCB lost during processing].   
+	g) Test program 2g runs but cannot terminate correctly, and gives part reasonable output at first.   
