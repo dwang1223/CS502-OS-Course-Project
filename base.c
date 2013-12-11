@@ -1134,8 +1134,10 @@ void disk_node_transfer( INT32 diskID )
 			new_node_add_to_readyQueue(queueNode, ADD_BY_PRIOR);
 
 			diskQueueCursor = diskQueueCursor->next;
-			diskQueue[diskID]->next = diskQueue[diskID]->next->next;
+			//diskQueue[diskID]->next = diskQueue[diskID]->next->next;
 		}
+
+		diskQueue[diskID]->next = diskQueueCursor;
 
 		if (diskQueue[diskID]->next != NULL)
 		{
@@ -1341,7 +1343,7 @@ void fault_handler( void )
 					pageID  = frmArray[victim].pageID; // old pageID, we will write its frame info to disk
 					frameID = frmArray[victim].frameID;
 
-					diskID = currentPCBNode->pid + 1;//((frmArray[i].pageID & 0x0018) >> 3) + 1;
+					diskID = frmArray[victim].pid + 1;//((frmArray[i].pageID & 0x0018) >> 3) + 1;
 					sectorID = pageID;//sectorIDtoAssign++; //(frmArray[i].pageID & 0x0FE0) >> 5;
 
 					// modify here to make it work for multi-process
@@ -1355,11 +1357,11 @@ void fault_handler( void )
 					/*if(SHADOW_TBL[pageID].isUsed < 1)
 					{*/
 						// add old page's info to shadow table
-						SHADOW_TBL[currentPCBNode->pid][pageID].diskID = diskID;
-						SHADOW_TBL[currentPCBNode->pid][pageID].sectorID = sectorID;
-						SHADOW_TBL[currentPCBNode->pid][pageID].frameID = frameID;
-						SHADOW_TBL[currentPCBNode->pid][pageID].pageID = pageID;
-						SHADOW_TBL[currentPCBNode->pid][pageID].isUsed = 1;
+						SHADOW_TBL[frmArray[victim].pid][pageID].diskID = diskID;
+						SHADOW_TBL[frmArray[victim].pid][pageID].sectorID = sectorID;
+						SHADOW_TBL[frmArray[victim].pid][pageID].frameID = frameID;
+						SHADOW_TBL[frmArray[victim].pid][pageID].pageID = pageID;
+						SHADOW_TBL[frmArray[victim].pid][pageID].isUsed = 1;
 
 						disk_readOrWrite(	SHADOW_TBL[frmArray[victim].pid][pageID].diskID,
 											SHADOW_TBL[frmArray[victim].pid][pageID].sectorID,
@@ -1890,9 +1892,9 @@ void osInit( int argc, char *argv[]  ) {
 	}
 	else if (strncmp(test, "test2g", 6) == 0)
 	{
-		maxDiskIndexPrint = 7;
+		/*maxDiskIndexPrint = 7;
 		enablePrinter = 1;
-		enableDiskPrint = 1;
+		enableDiskPrint = 1;*/
 		Z502MakeContext(&next_context, (void *)test2g, USER_MODE);
 	}
 	else
