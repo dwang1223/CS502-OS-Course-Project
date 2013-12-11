@@ -1846,6 +1846,7 @@ void osInit( int argc, char *argv[]  ) {
 	}
 	else if (strncmp(test, "test2c", 6) == 0)
 	{
+		enableFaultPrint = 10;
 		enablePrinter = 1;
 		enableDiskPrint = 1;
 		Z502MakeContext(&next_context, (void *)test2c, USER_MODE);
