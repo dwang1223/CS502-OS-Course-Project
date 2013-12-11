@@ -104,6 +104,7 @@ INT32 LockResult, LockResult2, LockResultPrinter, TimeLockResult;
 int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
+static int maxDiskIndexPrint = 4;
 
 // three toggle for printer 1 means on, 0 for off
 int enableMPrinter = 0;
@@ -244,7 +245,7 @@ void disk_queue_print()
 {
 	DiskQueue diskQueueCursor;
 	int i = 1;
-	for(i = 1; i < 4; i++)
+	for(i = 1; i < maxDiskIndexPrint; i++)
 	{
 		diskQueueCursor = diskQueue[i]->next;
 		printf("\tDisk %d:\t", i);
@@ -1378,7 +1379,7 @@ void fault_handler( void )
 					{
 						// new pageID has content in shadow table
 						disk_readOrWrite(	SHADOW_TBL[currentPCBNode->pid][status].diskID,
-											SHADOW_TBL[currentPCBNode->pid][status].sectorID ,//+ 8, // HERE?
+											SHADOW_TBL[currentPCBNode->pid][status].sectorID ,
 											(char*)&MEMORY[(frmArray[victim].frameID) * PGSIZE],
 											DISK_READ );
 
@@ -1863,6 +1864,7 @@ void osInit( int argc, char *argv[]  ) {
 		enableFaultPrint = 10;
 		enablePrinter = 1;
 		enableDiskPrint = 1;
+		maxDiskIndexPrint = 2;
 		Z502MakeContext(&next_context, (void *)test2c, USER_MODE);
 	}
 	else if (strncmp(test, "test2d", 6) == 0)
@@ -1888,6 +1890,9 @@ void osInit( int argc, char *argv[]  ) {
 	}
 	else if (strncmp(test, "test2g", 6) == 0)
 	{
+		maxDiskIndexPrint = 7;
+		enablePrinter = 1;
+		enableDiskPrint = 1;
 		Z502MakeContext(&next_context, (void *)test2g, USER_MODE);
 	}
 	else
