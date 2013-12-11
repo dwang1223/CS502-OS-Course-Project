@@ -104,8 +104,8 @@ int globalAddType = ADD_BY_PRIOR; //ADD_BY_END | ADD_BY_PRIOR
 char action[SP_LENGTH_OF_ACTION];
 INT32 currentTime = 0;
 int enableMPrinter = 0;
-int enablePrinter = 1;
-int enableDiskPrint = 1;
+int enablePrinter = 0;
+int enableDiskPrint = 0;
 static INT32 victim = 0;
 shadowTable SHADOW_TBL[1024];
 
@@ -151,7 +151,7 @@ void schedule_printer()
 {
 	Queue queueCursor;
 	int count = 0;
-	long counter = 65535;
+	long counter = 655350;
 	//int diskIndex = 1;
 	if(enablePrinter == 0)
 	{
@@ -1404,7 +1404,7 @@ void fault_handler( void )
 void svc( SYSTEM_CALL_DATA *SystemCallData ) 
 {
     short               call_type;
-    static short        do_print = 10;
+    static short        do_print = 0;
     short               i;
 	INT32				Temp;
 	PCB					*pcb;
@@ -1814,7 +1814,7 @@ void osInit( int argc, char *argv[]  ) {
 	*/
 	// generate current node (now it is the root node)
 	
-	Z502MakeContext( &next_context, (void *)test2d, USER_MODE );
+	Z502MakeContext( &next_context, (void *)test2g, USER_MODE );
 	rootPCB->pid = ROOT_PID;
 	strcpy(rootPCB->name, ROOT_PNAME);
 	rootPCB->context = next_context;
