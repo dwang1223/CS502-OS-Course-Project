@@ -15,7 +15,6 @@
   <graph edgedefault="directed" id="G">
     <data key="d7"/>
     <node id="n0">
-      <data key="d5"/>
       <data key="d6">
         <y:GenericNode configuration="com.yworks.entityRelationship.big_entity">
           <y:Geometry height="131.0" width="128.0" x="134.0" y="215.0"/>
@@ -39,10 +38,9 @@
       </data>
     </node>
     <node id="n1">
-      <data key="d5"/>
       <data key="d6">
         <y:GenericNode configuration="com.yworks.entityRelationship.big_entity">
-          <y:Geometry height="124.0" width="128.0" x="134.0" y="376.0"/>
+          <y:Geometry height="124.0" width="128.0" x="302.0" y="351.0"/>
           <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" backgroundColor="#B7C9E3" configuration="com.yworks.entityRelationship.label.name" fontFamily="Consolas" fontSize="12" fontStyle="plain" hasLineColor="false" height="16.0" modelName="internal" modelPosition="t" textColor="#000000" visible="true" width="76.57421875" x="25.712890625" y="4.0">shadowTable</y:NodeLabel>
@@ -64,10 +62,9 @@
       </data>
     </node>
     <node id="n2">
-      <data key="d5"/>
       <data key="d6">
         <y:GenericNode configuration="com.yworks.entityRelationship.big_entity">
-          <y:Geometry height="131.0" width="128.0" x="134.0" y="539.0"/>
+          <y:Geometry height="131.0" width="128.0" x="495.0" y="496.0"/>
           <y:Fill color="#E8EEF7" color2="#B7C9E3" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" backgroundColor="#B7C9E3" configuration="com.yworks.entityRelationship.label.name" fontFamily="Consolas" fontSize="12" fontStyle="plain" hasLineColor="false" height="16.0" modelName="internal" modelPosition="t" textColor="#000000" visible="true" width="63.37890625" x="32.310546875" y="4.0">DiskQueue</y:NodeLabel>
@@ -90,10 +87,9 @@
       </data>
     </node>
     <node id="n3">
-      <data key="d5"/>
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="59.0" width="351.0" x="343.0" y="262.0"/>
+          <y:Geometry height="59.0" width="351.0" x="343.0" y="251.0"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Consolas" fontSize="15" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="19.0" modelName="custom" textColor="#000000" visible="true" width="226.6708984375" x="62.16455078125" y="20.0">FRM frmArray[PHYS_MEM_PGS];<y:LabelModel>
@@ -108,13 +104,12 @@
       </data>
     </node>
     <node id="n4">
-      <data key="d5"/>
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="59.0" width="351.0" x="343.0" y="414.0"/>
+          <y:Geometry height="59.0" width="351.0" x="511.0" y="383.5"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Consolas" fontSize="15" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="19.0" modelName="custom" textColor="#000000" visible="true" width="243.1650390625" x="53.91748046875" y="20.0">shadowTable SHADOW_TBL[1024];<y:LabelModel>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Consolas" fontSize="15" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="19.0" modelName="custom" textColor="#000000" visible="true" width="267.90625" x="41.546875" y="20.0">shadowTable SHADOW_TBL[6][1024];<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
             </y:LabelModel>
             <y:ModelParameter>
@@ -126,10 +121,9 @@
       </data>
     </node>
     <node id="n5">
-      <data key="d5"/>
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="59.0" width="351.0" x="343.0" y="575.0"/>
+          <y:Geometry height="59.0" width="351.0" x="704.0" y="532.0"/>
           <y:Fill color="#FFCC00" transparent="false"/>
           <y:BorderStyle color="#000000" type="line" width="1.0"/>
           <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Consolas" fontSize="15" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="19.0" modelName="custom" textColor="#000000" visible="true" width="342.1298828125" x="4.43505859375" y="20.0">DiskQueue diskQueue[MAX_NUMBER_OF_DISKS];<y:LabelModel>
@@ -144,13 +138,12 @@
       </data>
     </node>
     <node id="n6">
-      <data key="d5"/>
       <data key="d6">
         <y:ShapeNode>
-          <y:Geometry height="27.0" width="545.0" x="470.16666666666663" y="664.0"/>
+          <y:Geometry height="27.0" width="323.0" x="670.1666666666666" y="475.0"/>
           <y:Fill hasColor="false" transparent="false"/>
           <y:BorderStyle hasColor="false" type="line" width="1.0"/>
-          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Consolas" fontSize="13" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="30.0" modelName="custom" textColor="#FF0000" visible="true" width="268.4560546875" x="138.27197265625" y="-1.5">An array for link list, 12 disks and 
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Consolas" fontSize="13" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="30.0" modelName="custom" textColor="#FF0000" visible="true" width="268.4560546875" x="27.27197265625" y="-1.5">An array for link list, 12 disks and 
 each one has an independent diskQueue<y:LabelModel>
               <y:SmartNodeLabelModel distance="4.0"/>
             </y:LabelModel>
@@ -162,15 +155,73 @@ each one has an independent diskQueue<y:LabelModel>
         </y:ShapeNode>
       </data>
     </node>
-    <edge id="e0" source="n6" target="n5">
+    <node id="n7">
+      <data key="d6">
+        <y:ShapeNode>
+          <y:Geometry height="27.0" width="323.0" x="583.3333333333333" y="333.25"/>
+          <y:Fill hasColor="false" transparent="false"/>
+          <y:BorderStyle hasColor="false" type="line" width="1.0"/>
+          <y:NodeLabel alignment="center" autoSizePolicy="content" fontFamily="Consolas" fontSize="13" fontStyle="plain" hasBackgroundColor="false" hasLineColor="false" height="17.0" modelName="custom" textColor="#FF0000" visible="true" width="454.2900390625" x="-92.47835286458326" y="5.0">Each process has its own shadow table, so it is 2-dimesion here<y:LabelModel>
+              <y:SmartNodeLabelModel distance="4.0"/>
+            </y:LabelModel>
+            <y:ModelParameter>
+              <y:SmartNodeLabelModelParameter labelRatioX="0.0" labelRatioY="0.0" nodeRatioX="-0.0830753353973166" nodeRatioY="0.0" offsetX="0.0" offsetY="0.0" upX="0.0" upY="-1.0"/>
+            </y:ModelParameter>
+          </y:NodeLabel>
+          <y:Shape type="rectangle"/>
+        </y:ShapeNode>
+      </data>
+    </node>
+    <edge id="e0" source="n0" target="n3">
+      <data key="d9"/>
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e1" source="n1" target="n4">
+      <data key="d9"/>
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e2" source="n2" target="n5">
+      <data key="d9"/>
+      <data key="d10">
+        <y:PolyLineEdge>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="1.0"/>
+          <y:Arrows source="none" target="standard"/>
+          <y:BendStyle smoothed="false"/>
+        </y:PolyLineEdge>
+      </data>
+    </edge>
+    <edge id="e3" source="n7" target="n4">
       <data key="d9"/>
       <data key="d10">
         <y:GenericEdge configuration="com.yworks.edge.framed">
-          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0">
-            <y:Point x="742.6666666666666" y="604.5"/>
-          </y:Path>
-          <y:LineStyle color="#FF0000" type="line" width="3.0"/>
-          <y:Arrows source="none" target="white_delta"/>
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="3.0"/>
+          <y:Arrows source="none" target="standard"/>
+        </y:GenericEdge>
+      </data>
+    </edge>
+    <edge id="e4" source="n6" target="n5">
+      <data key="d9"/>
+      <data key="d10">
+        <y:GenericEdge configuration="com.yworks.edge.framed">
+          <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+          <y:LineStyle color="#000000" type="line" width="3.0"/>
+          <y:Arrows source="none" target="standard"/>
         </y:GenericEdge>
       </data>
     </edge>
