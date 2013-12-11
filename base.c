@@ -1746,11 +1746,11 @@ void osInit( int argc, char *argv[]  ) {
 	shadowTableInit();
     /* Demonstrates how calling arguments are passed thru to here       */
 
-    printf( "Program called with %d arguments:", argc );
+    /*printf( "Program called with %d arguments:", argc );
     for ( i = 0; i < argc; i++ )
         printf( " %s", argv[i] );
-    printf( "\n" );
-    printf( "Calling with argument 'sample' executes the sample program.\n" );
+    printf( "\n" );*/
+    printf( "Calling with argument 'test2X' executes the phase 2 tests.\n" );
 
     /*          Setup so handlers will come to code in base.c           */
 
