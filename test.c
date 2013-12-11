@@ -1742,7 +1742,7 @@ void test2g(void) {
     static long    sleep_time = 1000;
 
     printf("This is Release %s:  Test 2g\n", CURRENT_REL);
-    //CREATE_PROCESS("test2g_a", test2f, PRIORITY2G, &Z502_REG1, &Z502_REG9);
+    CREATE_PROCESS("test2g_a", test2f, PRIORITY2G, &Z502_REG1, &Z502_REG9);
     CREATE_PROCESS("test2g_b", test2f, PRIORITY2G, &Z502_REG2, &Z502_REG9);
     CREATE_PROCESS("test2g_c", test2f, PRIORITY2G, &Z502_REG3, &Z502_REG9);
     CREATE_PROCESS("test2g_d", test2f, PRIORITY2G, &Z502_REG4, &Z502_REG9);

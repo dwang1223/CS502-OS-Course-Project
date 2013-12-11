@@ -71,6 +71,7 @@ void add_currentPCB_to_diskQueue_head(long , long , char* , int);
 void disk_queue_print();
 void shadowTableInit( void );
 void disk_node_transfer( INT32 );
+void clear_valid_bit(long , long );
 
 // These locations are global and define information about the page table
 extern UINT16        *Z502_PAGE_TBL_ADDR;
@@ -110,7 +111,7 @@ int enablePrinter = 0;
 int enableDiskPrint = 0;
 int enableFaultPrint = 0;
 static INT32 victim = 0;
-
+UINT16 *PAGE_TBL_HEAD_ADDR[10];
 // shadow table, one for each process
 shadowTable SHADOW_TBL[6][1024];
 
@@ -1148,6 +1149,10 @@ void disk_node_transfer( INT32 diskID )
 	}
 	READ_MODIFY(MEMORY_INTERLOCK_BASE+7, DO_UNLOCK, SUSPEND_UNTIL_LOCKED, &LockResult);
 }
+void clear_valid_bit( long pid, long pageID )
+{
+
+}
 
 /************************************************************************
     INTERRUPT_HANDLER
@@ -1286,6 +1291,7 @@ void fault_handler( void )
 		{
 			Z502_PAGE_TBL_LENGTH = 1024;
 			Z502_PAGE_TBL_ADDR = (UINT16 *)calloc( sizeof(UINT16), Z502_PAGE_TBL_LENGTH );
+			PAGE_TBL_HEAD_ADDR[currentPCBNode->pid] = Z502_PAGE_TBL_ADDR;
 		}
 
 		if (isframeAllUsedFlag == 0 )
@@ -1314,14 +1320,14 @@ void fault_handler( void )
 					1. Second Chance
 					2. FIFO
 					3. Use one fixed frame to do all swaps
-					[Attention: Second Chance & FIFO cannot work both on test2e and test2f]
+					
 			******************************************************************************************************/
 
 			//victim = status % 64;
 
-			victim = currentPCBNode->pid + 1; // if you comment this line, it algorithm will be FIFO
+			//victim = currentPCBNode->pid + 1; // if you comment this line, it algorithm will be FIFO
 
-			// if you enable the for loop below, you can get second chance algorithm
+			// if you enable the "for" loop below, you can get second chance algorithm
 
 			/*for (victim = realVictim; victim < (int)PHYS_MEM_PGS;)
 			{
@@ -1337,9 +1343,14 @@ void fault_handler( void )
 					diskID = currentPCBNode->pid + 1;//((frmArray[i].pageID & 0x0018) >> 3) + 1;
 					sectorID = pageID;//sectorIDtoAssign++; //(frmArray[i].pageID & 0x0FE0) >> 5;
 
-					Z502_PAGE_TBL_ADDR[pageID] = 64; // set invalid frameID
-					Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
-					
+					// modify here to make it work for multi-process
+
+					PAGE_TBL_HEAD_ADDR[frmArray[victim].pid][pageID] = 64;
+					PAGE_TBL_HEAD_ADDR[frmArray[victim].pid][pageID] &= 0x7FFF; // set the valid bit to 0
+
+					//Z502_PAGE_TBL_ADDR[pageID] = 64; // set invalid frameID
+					//Z502_PAGE_TBL_ADDR[pageID] = (UINT16)Z502_PAGE_TBL_ADDR[pageID] & 0x7FFF; // set the valid bit to 0
+
 					/*if(SHADOW_TBL[pageID].isUsed < 1)
 					{*/
 						// add old page's info to shadow table
@@ -1368,7 +1379,7 @@ void fault_handler( void )
 						// new pageID has content in shadow table
 						disk_readOrWrite(	SHADOW_TBL[currentPCBNode->pid][status].diskID,
 											SHADOW_TBL[currentPCBNode->pid][status].sectorID ,//+ 8, // HERE?
-											(char*)&MEMORY[(SHADOW_TBL[currentPCBNode->pid][status].frameID) * PGSIZE], 
+											(char*)&MEMORY[(frmArray[victim].frameID) * PGSIZE],
 											DISK_READ );
 
 						SHADOW_TBL[currentPCBNode->pid][status].isUsed = 0;
