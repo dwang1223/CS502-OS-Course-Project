@@ -1429,7 +1429,7 @@ void fault_handler( void )
 void svc( SYSTEM_CALL_DATA *SystemCallData ) 
 {
     short               call_type;
-    static short        do_print = 0;
+    static short        do_print = 10;
     short               i;
 	INT32				Temp;
 	PCB					*pcb;
