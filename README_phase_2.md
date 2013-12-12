@@ -71,7 +71,7 @@ I have tried three(maybe I can say 4) page replacement algorithms: **FIFO**, **S
 ![Second Chance](images/test2e_secondChance.png "Second Chance")     <br/>
 1. Surprising, that in **test2e** only one fix frame to do page replacement has a better profermance than other two in Page Fault count, Total execution time, and Read/Write disk times. I think that it happens because the page number of data to read/write is sequential(not ramdon), therefore this issue will not happen in test2f.    <br/><br/>
 2. FIFO & Second Chance have almost the same perfermance for test2e, because after the first round(set referrence bit to 0), second chance is the same as FIFO. Therefore, second chance costs 50 more execution time from above images.     <br/><br/>
-3. Below is an image od comparison for different algorithms. And we can find that fixed frame almost has the same performance with Second Chance. FIFO has the worst performance.   <br/>  
+3. Below is an image of comparison for different algorithms. And we can find that "fixed frame" almost has the same performance with Second Chance. FIFO has the worst performance.   <br/>  
 ![test2f comparision](images/test2f_comparision.png "test2f comparision")     <br/>     
 
 ###6. Anomalies    
@@ -94,8 +94,7 @@ Test Format
 =======
      I have added schedule_printer() & memory_printer() in my code.
 
-Below is a demo screenshot for **test2f**.    
-![Screenshot for test2f](images/test2f.png "Screenshot for test2f")     
+I have provided screenshots for each test at the end of this document! 
 
 Test Results
 ======
@@ -106,3 +105,13 @@ Test Results
     e) Test program 2e runs and gives expected output.
     f) Test program 2f runs and gives expected output.
 	g) Test program 2g runs but cannot terminate correctly, and gives part reasonable output at first.   
+
+Screenshots
+=====
+![test2a](images/test2a.png "test2a")<br/>
+![test2b](images/test2b.png "test2b")<br/>
+![test2c](images/test2c.png "test2c")<br/>
+![test2d](images/test2d1.png "test2d")<br/>
+![test2e](images/test2e1.png "test2e")<br/>
+![test2f](images/test2f1.png "test2f")<br/>
+![test2g](images/test2g.png "test2g")<br/>

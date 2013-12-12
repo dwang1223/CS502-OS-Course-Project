@@ -1897,6 +1897,11 @@ void osInit( int argc, char *argv[]  ) {
 		enableDiskPrint = 1;*/
 		Z502MakeContext(&next_context, (void *)test2g, USER_MODE);
 	}
+	else if (strncmp(test, "test2h", 6) == 0)
+	{
+		printf("Illegal Input\n");
+		exit(0);
+	}
 	else
 	{
 		printf("Illegal Input\n");
