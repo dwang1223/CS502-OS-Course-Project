@@ -1899,7 +1899,7 @@ void osInit( int argc, char *argv[]  ) {
 	}
 	else if (strncmp(test, "test2h", 6) == 0)
 	{
-		printf("Illegal Input\n");
+		printf("Yaaa, sorry! I make it empty for test2h!\n");
 		exit(0);
 	}
 	else
